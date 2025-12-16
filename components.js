@@ -15,7 +15,7 @@ class LockerItem {
     // ===== LOGIC MÀU =====
     // Border color - viền ngoài
     const fillColor = this.status === 'available' ? '#35FFBF' :     // Xanh cyan
-                      this.status === 'occupied' ? '#FF3535' :      // Đỏ
+                      this.status === 'occupied' ? '#929292ff' :      // Đỏ
                       this.status === 'reserved' ? '#FFA500' :      // Cam
                       '#35FFBF';                                    // Mặc định xanh
     
@@ -90,7 +90,7 @@ class LockerItem {
         <p class="absolute left-[55px] top-[6px] text-[10px] font-bold pointer-events-none" 
           style="color: #000; font-weight: 900; text-shadow: 0 0 10px rgba(255, 255, 255, 1), 0 0 5px rgba(255, 255, 255, 0.8);">CASE ${this.partNumber}</p>
         <p class="absolute left-[135px] top-[5px] text-[10px] font-bold text-[#3bd4ff] pointer-events-none">${this.points}</p>
-         <p class="absolute left-[0px] top-1/2 transform -translate-x-1/2 -translate-y-1/2 text-[48px] font-bold pointer-events-none" 
+         <p class="absolute left-[110px] top-1/2 transform -translate-x-1/2 -translate-y-1/2 text-[48px] font-bold pointer-events-none" 
          style="color: rgba(0, 0, 0, 0.15);">${this.partNumber}</p>
       </div>
 
@@ -124,7 +124,7 @@ class LockerItem {
   }
 }
 
-// Locker Grid Manager - GIỮ NGUYÊN
+// Locker Grid Manager 
 class LockerGrid {
   constructor() {
     this.lockers = [];
@@ -134,36 +134,35 @@ class LockerGrid {
   initializeLockers() {
     const lockerConfigs = [
       // Row 1
-      { partNumber: 1, left: '0px', top: '50px', points: 1000, status: 'available' },
-      { partNumber: 2, left: '130px', top: '50px', points: 1000, status: 'available' },
-      { partNumber: 3, left: '260px', top: '50px', points: 1000, status: 'occupied' },
-      { partNumber: 4, left: '390px', top: '50px', points: 1000, status: 'available' },
-      { partNumber: 5, left: '520px', top: '50px', points: 1500, status: 'available' },
-      
+      { partNumber: 1, left: '0px', top: '65px', points: 1000, status: 'available' },
+      { partNumber: 2, left: '130px', top: '65px', points: 1000, status: 'available' },
+      { partNumber: 3, left: '260px', top: '65px', points: 1000, status: 'occupied' },
+      { partNumber: 4, left: '390px', top: '65px', points: 1000, status: 'available' },
+      { partNumber: 5, left: '520px', top: '65px', points: 1500, status: 'available' },
       // Row 2
-      { partNumber: 6, left: '0px', top: '170px', points: 1000, status: 'available' },
-      { partNumber: 7, left: '130px', top: '170px', points: 1000, status: 'available' },
-      { partNumber: 8, left: '260px', top: '170px', points: 1000, status: 'available' },
-      { partNumber: 9, left: '390px', top: '170px', points: 1000, status: 'available' },
+      { partNumber: 6, left: '0px', top: '178px', points: 1000, status: 'available' },
+      { partNumber: 7, left: '130px', top: '178px', points: 1000, status: 'available' },
+      { partNumber: 8, left: '260px', top: '178px', points: 1000, status: 'available' },
+      { partNumber: 9, left: '390px', top: '178px', points: 1000, status: 'available' },
       
       // Row 3
-      { partNumber: 10, left: '0px', top: '290px', points: 1000, status: 'available' },
-      { partNumber: 12, left: '130px', top: '290px', points: 1000, status: 'available' },
-      { partNumber: 13, left: '260px', top: '290px', points: 1000, status: 'available' },
-      { partNumber: 14, left: '390px', top: '290px', points: 1000, status: 'occupied' },
-      
+      { partNumber: 10, left: '0px', top: '296px', points: 1000, status: 'available' },
+      { partNumber: 12, left: '130px', top: '296px', points: 1000, status: 'available' },
+      { partNumber: 13, left: '260px', top: '296px', points: 1000, status: 'available' },
+      { partNumber: 14, left: '390px', top: '296px', points: 1000, status: 'occupied' },
+
       // Row 4
-      { partNumber: 16, left: '0px', top: '410px', points: 1000, status: 'available' },
-      { partNumber: 17, left: '130px', top: '410px', points: 1000, status: 'available' },
-      { partNumber: 18, left: '260px', top: '410px', points: 1000, status: 'occupied' },
-      { partNumber: 19, left: '390px', top: '410px', points: 1000, status: 'available' },
-      { partNumber: 20, left: '520px', top: '410px', points: 1000, status: 'available' },
+      { partNumber: 16, left: '0px', top: '416px', points: 1000, status: 'available' },
+      { partNumber: 17, left: '130px', top: '416px', points: 1000, status: 'available' },
+      { partNumber: 18, left: '260px', top: '416px', points: 1000, status: 'occupied' },
+      { partNumber: 19, left: '390px', top: '416px', points: 1000, status: 'available' },
+      { partNumber: 20, left: '520px', top: '416px', points: 1000, status: 'available' },
       //Row5
-      { partNumber: 21, left: '0px', top: '530px', points: 1000, status: 'available' },
-      { partNumber: 22, left: '130px', top: '530px', points: 1000, status: 'available' },
-      { partNumber: 23, left: '260px', top: '530px', points: 1000, status: 'occupied' },
-      { partNumber: 24, left: '390px', top: '530px', points: 1000, status: 'available' },
-      { partNumber: 25, left: '520px', top: '530px', points: 1000, status: 'available' },
+      { partNumber: 21, left: '0px', top: '536px', points: 1000, status: 'available' },
+      { partNumber: 22, left: '130px', top: '536px', points: 1000, status: 'available' },
+      { partNumber: 23, left: '260px', top: '536px', points: 1000, status: 'occupied' },
+      { partNumber: 24, left: '390px', top: '536px', points: 1000, status: 'available' },
+      { partNumber: 25, left: '520px', top: '536px', points: 1000, status: 'available' },
     ];
 
     this.lockers = lockerConfigs.map(config => new LockerItem(config));
@@ -178,7 +177,7 @@ class LockerGrid {
   }
   renderScreen(){
     return `
-    <div id="screen-display" style="position: absolute; left: 567px; top: 170px; width: 125px; height: 228px; z-index: 100;">
+    <div id="screen-display" style="position: absolute; left: 567px; top: 176px; width: 125px; height: 228px; z-index: 100;">
       <svg width="109" height="213" viewBox="0 0 109 213" fill="none" xmlns="http://www.w3.org/2000/svg" style="width: 100%; height: 100%;">
         <path d="M0 10C0 4.47716 4.47715 0 10 0H99C104.523 0 109 4.47715 109 10V203C109 208.523 104.523 213 99 213H10C4.47715 213 0 208.523 0 203V10Z" fill="#E8E2E2"/>
         <path d="M3.60327 18.8138C3.60327 13.291 8.08042 8.81384 13.6033 8.81384H95.3967C100.92 8.81384 105.397 13.291 105.397 18.8138V134.693C105.397 140.216 100.92 144.693 95.3967 144.693H13.6033C8.08041 144.693 3.60327 140.216 3.60327 134.693V18.8138Z" fill="black"/>

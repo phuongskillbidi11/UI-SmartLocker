@@ -3,6 +3,7 @@ class ControlPanel {
     this.currentView = 'menu'; // 'menu', 'history', 'export', 'productDetail'
     this.currentProduct = null; // Lưu sản phẩm đang xem
     this.currentCase = null; // Lưu case number
+    this.tempQuantity = 0; // Lưu số lượng tạm thời khi xem chi tiết
   }
 
   getLabelPosition() {
@@ -28,6 +29,13 @@ class ControlPanel {
         marginRight: '0px',
         fontSize: '14px'
       },
+      import: { 
+        marginBottom: '15px',
+        marginTop: '5px',
+        marginLeft: '5px',
+        marginRight: '0px',
+        fontSize: '14px'
+      },
       productDetail: {
         marginBottom: '15px',
         marginTop: '5px',
@@ -45,6 +53,7 @@ class ControlPanel {
       menu: 'Tùy Chọn',
       history: 'Lịch Sử Xuất/Nhập',
       export: 'Danh Sách Xuất',
+      import: 'Danh Sách Nhập',
       productDetail: 'Thông Tin Vật Tư'
     };
     
@@ -110,10 +119,10 @@ class ControlPanel {
               <label>Mã Hàng</label>
               <input type="text" value="${product.code}" id="productCode_${product.id}" readonly />
             </div>
-
             <div class="info-row-quantity">
               <label>Số lượng</label>
-              <div class="quantity-detail-controls">
+              <div class="quantity-detail-controls" style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                <!-- Nút giảm -->
                 <button class="quantity-detail-btn" onclick="controlPanel.decreaseDetailQuantity()" title="Giảm">
                   <svg width="39" height="25" viewBox="0 0 39 25" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <g filter="url(#filter_detail_down)">
@@ -143,7 +152,19 @@ class ControlPanel {
                     </defs>
                   </svg>
                 </button>
-                <span class="quantity-detail-value" id="detailQuantity">${product.quantity}</span>
+                
+                <!-- Ô nhập số lượng -->
+                <input 
+                  type="number" 
+                  class="quantity-detail-value" 
+                  id="detailQuantity" 
+                  value="0" 
+                  min="0"
+                  oninput="controlPanel.updateTempQuantity()"
+                  style="text-align: center; background: transparent; border: none; color: #3bd4ff; font-size: 18px; font-weight: bold; width: 50px;"
+                />
+                
+                <!-- Nút tăng -->
                 <button class="quantity-detail-btn" onclick="controlPanel.increaseDetailQuantity()" title="Tăng">
                   <svg width="39" height="25" viewBox="0 0 39 25" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <g filter="url(#filter_detail_up)">
@@ -173,6 +194,21 @@ class ControlPanel {
                     </defs>
                   </svg>
                 </button>
+                
+                <!-- Divider (phân cách) -->
+                <span style="color: #fff; font-size: 16px; margin: 0 4px;">|</span>
+                
+                <!-- Số lượng hiện có -->
+                <div style="display: flex; align-items: center; gap: 4px;">
+                  <span style="color: #fff; font-size: 11px; white-space: nowrap;">Hiện có:</span>
+                  <span id="currentQuantity_${product.id}" style="color:#009EDB; font-size: 14px; font-weight: bold;">${product.quantity}</span>
+                </div>
+                
+                <!-- Tổng số sau nhập -->
+                <div style="display: flex; align-items: center; gap: 4px;">
+                  <span style="color: #fff; font-size: 11px; white-space: nowrap;">Sau nhập:</span>
+                  <span id="totalQuantity_${product.id}" style="color: #009EDB; font-size: 14px; font-weight: bold;">${product.quantity}</span>
+                </div>
               </div>
             </div>
 
@@ -217,60 +253,92 @@ class ControlPanel {
     `;
   }
   showProductDetail(product, caseNumber) {
-    this.currentView = 'productDetail';
     this.currentProduct = product;
     this.currentCase = caseNumber;
+    this.tempQuantity = 0; 
+    this.currentView = 'productDetail';
     
-    // Hide product list
-    hideProductList();
+    // Hiển thị modal
+    const modalBackdrop = document.getElementById('import-modal-backdrop');
+    const modalOverlay = document.getElementById('import-modal-overlay');
+    const modalContent = document.getElementById('import-modal-content');
     
-    // Render in control panel
-    this.render('control-panel');
+    if (modalBackdrop) modalBackdrop.classList.remove('hidden');
+    if (modalOverlay) modalOverlay.classList.remove('hidden');
+    if (modalContent) {
+      modalContent.innerHTML = this.generateProductDetail();
+      this.updateTotalQuantity();
+    }
   }
-
   backToProductList() {
-    // Reset view và product
-    this.currentView = 'menu';
-    this.currentProduct = null;
-    this.currentCase = null;
+    // Đóng modal
+    const modalBackdrop = document.getElementById('import-modal-backdrop');
+    const modalOverlay = document.getElementById('import-modal-overlay');
     
+    if (modalBackdrop) modalBackdrop.classList.add('hidden');
+    if (modalOverlay) modalOverlay.classList.add('hidden');
+    
+    // Reset product
+    this.currentProduct = null;
+    
+    console.log('Đã đóng modal chi tiết sản phẩm');
+  }
+  backToLockerGrid() {
     // Ẩn product list section
     const productListSection = document.getElementById('product-list-section');
     if (productListSection) {
-        productListSection.classList.add('hidden');
+      productListSection.classList.add('hidden');
     }
     
-    // Hiện locker grid
+    // Hiển thị lại locker grid
     const lockerGrid = document.getElementById('locker-grid');
     if (lockerGrid) {
-        lockerGrid.classList.remove('hidden');
+      lockerGrid.classList.remove('hidden');
     }
     
-    // Render menu tùy chọn trong control panel
-    this.render('control-panel');
+    // Reset trạng thái
+    this.currentProduct = null;
+    this.currentCase = null;
+    this.tempQuantity = 0;
+    
+    console.log('Đã quay về locker grid');
   }
-
   increaseDetailQuantity() {
     if (!this.currentProduct) return;
-    this.currentProduct.quantity++;
-    document.getElementById('detailQuantity').textContent = this.currentProduct.quantity;
     
-    // Update in productsByCase
-    if (currentCase && productsByCase[currentCase]) {
-      const prod = productsByCase[currentCase].find(p => p.id === this.currentProduct.id);
-      if (prod) prod.quantity = this.currentProduct.quantity;
-    }
+    this.tempQuantity++; 
+    document.getElementById('detailQuantity').value = this.tempQuantity;
+    this.updateTotalQuantity();
+  }
+  updateTempQuantity() {
+    const input = document.getElementById('detailQuantity');
+    let value = parseInt(input.value) || 0;
+    
+    if (value < 0) value = 0; 
+    
+    this.tempQuantity = value;
+    input.value = value; 
+    this.updateTotalQuantity();
   }
 
   decreaseDetailQuantity() {
-    if (!this.currentProduct || this.currentProduct.quantity <= 0) return;
-    this.currentProduct.quantity--;
-    document.getElementById('detailQuantity').textContent = this.currentProduct.quantity;
+    if (!this.currentProduct || this.tempQuantity <= 0) return;
     
-    // Update in productsByCase
-    if (currentCase && productsByCase[currentCase]) {
-      const prod = productsByCase[currentCase].find(p => p.id === this.currentProduct.id);
-      if (prod) prod.quantity = this.currentProduct.quantity;
+    this.tempQuantity--; 
+    document.getElementById('detailQuantity').value = this.tempQuantity;
+    this.updateTotalQuantity();
+    
+  }
+  updateTotalQuantity() {
+    if (!this.currentProduct) return;
+    
+    // Tính tổng số = số hiện có + số nhập thêm
+    const total = this.currentProduct.quantity + this.tempQuantity;
+    
+    // Cập nhật vào span "Tổng số sau nhập"
+    const totalSpan = document.getElementById(`totalQuantity_${this.currentProduct.id}`);
+    if (totalSpan) {
+      totalSpan.textContent = total;
     }
   }
 
@@ -279,24 +347,67 @@ class ControlPanel {
   }
 
   importProduct() {
-    alert('Nhập vật tư vào kho');
-  }
+    if (!this.currentProduct || !this.currentCase) return;
+    
+    if (!this.tempQuantity || this.tempQuantity <= 0) {
+      alert('Vui lòng nhập số lượng lớn hơn 0!');
+      return;
+    }
+    
+    if (!window.importList) {
+      window.importList = [];
+    }
+    
+    const nameInput = document.getElementById(`productName_${this.currentProduct.id}`);
+    const descInput = document.getElementById(`productDesc_${this.currentProduct.id}`);
+    const quantityToAdd = this.tempQuantity;
+    
+    if (nameInput) this.currentProduct.name = nameInput.value;
+    if (descInput) this.currentProduct.description = descInput.value;
+    
+    if (typeof addProductToInventory === 'function') {
+      addProductToInventory(this.currentProduct.id, quantityToAdd);
+    }
+    
+    const existingIndex = window.importList.findIndex(item => 
+      item.maVatTu === this.currentProduct.code && 
+      item.viTri === this.currentCase
+    );
+    
+    if (existingIndex !== -1) {
+      window.importList[existingIndex].soLuong += quantityToAdd;
+      window.importList[existingIndex].tenVatTu = this.currentProduct.name;
+    } else {
+      window.importList.push({
+        maVatTu: this.currentProduct.code,
+        tenVatTu: this.currentProduct.name,
+        viTri: this.currentCase,
+        soLuong: quantityToAdd
+      });
+    }
 
-  showHistory() {
-    this.currentView = 'history';
-    this.render('control-panel');
-  }
-
-  showExport() { 
-    this.currentView = 'export';
-    this.render('control-panel');
-  }
-
-  showMenu() {
-    this.currentView = 'menu';
+    // Đóng modal
+    const modalBackdrop = document.getElementById('import-modal-backdrop');
+    const modalOverlay = document.getElementById('import-modal-overlay');
+    
+    if (modalBackdrop) modalBackdrop.classList.add('hidden');
+    if (modalOverlay) modalOverlay.classList.add('hidden');
+    
+    if (typeof renderProductList === 'function') {
+      renderProductList(this.currentCase);
+    }
+    
+    // Reset trạng thái
+    this.currentView = 'import';
     this.currentProduct = null;
+    this.tempQuantity = 0;
+    
+    // Render lại control panel
     this.render('control-panel');
-  }  
+    
+    console.log('Đã thêm vào danh sách nhập:', window.importList);
+  }
+
   generateActionButtons() {
     const buttons = [
       { text: 'Xuất Vật Tư', action: 'xuatVatTu' },
@@ -318,72 +429,69 @@ class ControlPanel {
     `;
   }
   generateExportTable() {
-    // Dữ liệu mẫu cho danh sách xuất
-    const exportData = [
-      { maVatTu: 'JGW87914', tenVatTu: 'Nón bảo hộ', viTri: 2, soLuong: 1 },
-      { maVatTu: 'JGW87914', tenVatTu: 'Nón bảo hộ', viTri: 2, soLuong: 1 },
-      { maVatTu: 'JGW87914', tenVatTu: 'Nón bảo hộ', viTri: 2, soLuong: 1 },
-      { maVatTu: 'JGW87914', tenVatTu: 'Nón bảo hộ', viTri: 2, soLuong: 1 },
-      { maVatTu: 'JGW87914', tenVatTu: 'Nón bảo hộ', viTri: 2, soLuong: 1 },
-      { maVatTu: 'JGW87914', tenVatTu: 'Nón bảo hộ', viTri: 2, soLuong: 1 },
-      { maVatTu: 'JGW87914', tenVatTu: 'Nón bảo hộ', viTri: 2, soLuong: 1 },
-      { maVatTu: 'JGW87914', tenVatTu: 'Nón bảo hộ', viTri: 2, soLuong: 1 }
-    ];
+      // Dùng exportList thay vì dữ liệu mẫu
+      const exportData = window.exportList || [];
 
-    const rows = exportData.map(item => `
-      <tr>
-        <td>${item.maVatTu}</td>
-        <td>${item.tenVatTu}</td>
-        <td>${item.viTri}</td>
-        <td>${item.soLuong}</td>
-      </tr>
-    `).join('');
+      const rows = exportData.length > 0 ? exportData.map(item => `
+        <tr>
+          <td>${item.maVatTu}</td>
+          <td>${item.tenVatTu}</td>
+          <td>${item.viTri}</td>
+          <td>${item.soLuong}</td>
+        </tr>
+      `).join('') : `
+        <tr>
+          <td colspan="4" style="text-align: center; padding: 20px; color: rgba(255,255,255,0.5);">
+            Chưa có vật tư nào. Click vào locker để thêm.
+          </td>
+        </tr>
+      `;
 
-    return `
-      <div class="history-container">
-        <div class="table-wrapper">
-          <table class="history-table">
-            <thead>
-              <tr>
-                <th>Mã Vật Tư</th>
-                <th>Tên Vật Tư</th>
-                <th>Vị Trí</th>
-                <th>Số Lượng</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${rows}
-            </tbody>
-          </table>
-        </div>
-        
-        <div class="button-row">
-          <button class="back-btn" onclick="controlPanel.showMenu()">
-            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-              <path d="M15 18L9 12L15 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-            </svg>
-            <span>Trở Lại</span>
-          </button>                
-          <button class="export-btn" onclick="confirmExport()">
-            <div class="text">
+      return `
+        <div class="history-container">
+          <div class="table-wrapper">
+            <table class="history-table">
+              <thead>
+                <tr>
+                  <th>Mã Vật Tư</th>
+                  <th>Tên Vật Tư</th>
+                  <th>Vị Trí(Case)</th>
+                  <th>Số Lượng</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${rows}
+              </tbody>
+            </table>
+          </div>
+          
+          <div class="button-row">
+            <button class="back-btn" onclick="controlPanel.showMenu()">
               <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                <polyline points="17 10 12 5 7 10"></polyline>
-                <line x1="12" y1="5" x2="12" y2="21"></line>
+                <path d="M15 18L9 12L15 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
               </svg>
-              <span>Xuất Vật Tư</span>
-            </div>
-            <div class="icon">
-              <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                <polyline points="17 10 12 5 7 10"></polyline>
-                <line x1="12" y1="5" x2="12" y2="21"></line>
-              </svg>
-            </div>
-          </button>
+              <span>Trở Lại</span>
+            </button>                
+            <button class="export-btn" onclick="confirmExport()">
+              <div class="text">
+                <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                  <polyline points="17 10 12 5 7 10"></polyline>
+                  <line x1="12" y1="5" x2="12" y2="21"></line>
+                </svg>
+                <span>Xác Nhận Xuất</span>
+              </div>
+              <div class="icon">
+                <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                  <polyline points="17 10 12 5 7 10"></polyline>
+                  <line x1="12" y1="5" x2="12" y2="21"></line>
+                </svg>
+              </div>
+            </button>
+          </div>
         </div>
-      </div>
-    `;
+      `;
   }
 
   generateHistoryTable() {
@@ -460,6 +568,68 @@ class ControlPanel {
     `;
   }
 
+  generateImportTable() {
+    // Dữ liệu nhập - ban đầu rỗng, sẽ được thêm vào khi nhập
+    const importData = window.importList || [];
+
+    const rows = importData.length > 0 ? importData.map(item => `
+      <tr>
+        <td>${item.maVatTu}</td>
+        <td>${item.tenVatTu}</td>
+        <td>${item.viTri}</td>
+        <td>${item.soLuong}</td>
+      </tr>
+    `).join('') : `
+      <tr>
+        <td colspan="4" style="text-align: center; padding: 20px; color: rgba(255,255,255,0.5);">
+          Chưa có vật tư nào. Click vào locker để thêm.
+        </td>
+      </tr>
+    `;
+
+    return `
+      <div class="history-container">
+        <div class="table-wrapper">
+          <table class="history-table">
+            <thead>
+              <tr>
+                <th>Mã Vật Tư</th>
+                <th>Tên Vật Tư</th>
+                <th>Vị Trí (Case)</th>
+                <th>Số Lượng</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rows}
+            </tbody>
+          </table>
+        </div>
+        
+        <div class="button-row">
+          <button class="back-btn" onclick="controlPanel.showMenu()">
+            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path d="M15 18L9 12L15 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+            </svg>
+            <span>Trở Lại</span>
+          </button>                
+          <button class="export-btn" onclick="confirmImport()">
+            <div class="text">
+              <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path d="M6.75 12H11.25V7.5H14.25L9 2.25L3.75 7.5H6.75V12ZM3.75 13.5H14.25V15H3.75V13.5Z" fill="currentColor"/>
+              </svg>
+              <span>Xác Nhận Nhập</span>
+            </div>
+            <div class="icon">
+              <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path d="M6.75 12H11.25V7.5H14.25L9 2.25L3.75 7.5H6.75V12ZM3.75 13.5H14.25V15H3.75V13.5Z" fill="currentColor"/>
+              </svg>
+            </div>
+          </button>
+        </div>
+      </div>
+    `;
+  }
+
   showHistory() {
     this.currentView = 'history';
     this.render('control-panel');
@@ -467,12 +637,41 @@ class ControlPanel {
 
   showExport() { 
     this.currentView = 'export';
+    // Set view type for productList
+    if (typeof setViewType === 'function') {
+      setViewType('export');
+    }
+    this.render('control-panel');
+  }
+
+  showImport() {
+    this.currentView = 'import';
+    // Set view type for productList
+    if (typeof setViewType === 'function') {
+      setViewType('import');
+    }
     this.render('control-panel');
   }
 
   showMenu() {
-    this.currentView = 'menu';
-    this.render('control-panel');
+      this.currentView = 'menu';
+      
+      // Ẩn product list nếu đang hiển thị
+      const productListSection = document.getElementById('product-list-section');
+      if (productListSection) {
+          productListSection.classList.add('hidden');
+      }
+      
+      // Hiện locker grid
+      const lockerGrid = document.getElementById('locker-grid');
+      if (lockerGrid) {
+          lockerGrid.classList.remove('hidden');
+      }
+      
+      // Reset current case
+      currentCase = null;
+      
+      this.render('control-panel');
   }
 
   render(containerId) {
@@ -486,6 +685,8 @@ class ControlPanel {
         content = this.generateHistoryTable();
       } else if (this.currentView === 'export') {  
         content = this.generateExportTable();
+      } else if (this.currentView === 'import') {  
+        content = this.generateImportTable();
       } else if (this.currentView === 'productDetail') {
         content = this.generateProductDetail();
       }
@@ -514,9 +715,21 @@ function baoCao1() {
 
 function nhapVatTu() {
   console.log('Nhập vật tư');
-  alert('Nhập vật tư');
+  controlPanel.showImport();
 }
-
+function confirmImport() {
+  if (!window.importList || window.importList.length === 0) {
+    alert('Danh sách nhập trống!');
+    return;
+  }
+  
+  console.log('Xác nhận nhập vật tư:', window.importList);
+  alert('Đang xác nhận nhập ' + window.importList.length + ' vật tư...');
+  
+  // Sau khi xác nhận, xóa danh sách
+  window.importList = [];
+  controlPanel.showImport();  // Refresh lại bảng
+}
 function caiDat() {
   console.log('Cài đặt');
   alert('Cài đặt');
@@ -527,11 +740,70 @@ function exportReport() {
   alert('Đang xuất báo cáo...');
 }
 
-function confirmExport() { 
-  console.log('Xác nhận xuất vật tư');
-  alert('Đang xuất vật tư...');
+function removeProductFromInventory(caseNumber, productId, quantityToRemove) {
+    if (!productsByCase[caseNumber]) return false;
+    
+    const products = productsByCase[caseNumber];
+    const product = products.find(p => p.id === productId);
+    
+    if (product && product.quantity >= quantityToRemove) {
+        product.quantity -= quantityToRemove;
+        console.log(`Removed ${quantityToRemove} from product ${productId}. New quantity: ${product.quantity}`);
+        return true;
+    }
+    return false;
 }
 
+function confirmExport() { 
+    if (!window.exportList || window.exportList.length === 0) {
+        alert('Danh sách xuất trống!');
+        return;
+    }
+    
+    // Loop qua exportList và trừ số lượng từ inventory
+    let success = true;
+    let failedItems = [];
+    const affectedCases = new Set(); // Track các case đã thay đổi
+    
+    for (const item of window.exportList) {
+        if (!removeProductFromInventory(item.viTri, item.productId, item.soLuong)) {
+            success = false;
+            failedItems.push(item.tenVatTu);
+        } else {
+            affectedCases.add(item.viTri); // Lưu case đã thay đổi
+        }
+    }
+    
+    if (success) {
+        console.log('Xác nhận xuất vật tư:', window.exportList);
+        alert('Đã xuất ' + window.exportList.length + ' loại vật tư!');
+        affectedCases.forEach(caseNum => {
+            const tempCurrentCase = currentCase; // Backup currentCase
+            currentCase = caseNum; // Set tạm để updateTotalQuantity() work
+            if (typeof updateTotalQuantity === 'function') {
+                updateTotalQuantity();
+            }
+            currentCase = tempCurrentCase; // Restore currentCase
+        });
+        
+        // Clear export list và reset exportedQuantities
+        window.exportList = [];
+        
+        // Reset tất cả exportedQuantities
+        for (let caseNum in exportedQuantities) {
+            exportedQuantities[caseNum] = {};
+        }
+        
+        // Refresh product list nếu đang hiển thị
+        if (typeof renderProductList === 'function' && currentCase) {
+            renderProductList();
+        }
+        
+        controlPanel.showExport(); // Refresh table
+    } else {
+        alert('Không đủ số lượng để xuất: ' + failedItems.join(', '));
+    }
+}
 // Initialize Page
 document.addEventListener('DOMContentLoaded', () => {
   const lockerGrid = new LockerGrid();

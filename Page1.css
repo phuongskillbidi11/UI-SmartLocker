@@ -1,3 +1,27 @@
+
+/* Locker Grid */
+#locker-grid {
+    position: absolute;
+    top: 30px;
+    left: 15px;
+    width: calc(100% - 100px);
+    height: calc(100% - 200px);
+    z-index: 2;
+}
+
+.locker-item {
+    cursor: pointer;
+    transition: transform 0.3s;
+}
+
+.locker-item:hover {
+    transform: scale(1.05);
+    z-index: 10;
+}
+
+.locker-item * {
+    pointer-events: none;
+}
 #control-panel {
     position: absolute;
     top: 696px;
@@ -27,6 +51,7 @@
     gap: 20px;
     max-width: 500px;
     margin-left: 100px;
+   margin-top: 45px;
 }
 
 .action-btn {
@@ -357,14 +382,13 @@
 
 
 
-/* Search Container - Đè lên SVG */
 #search-container {
     position: absolute;
-    left: 51px;           /* Trùng với SVG rect x="51" */
-    top: 64px;            /* Trùng với SVG rect y="64" */
-    width: 278.939px;     /* Trùng với SVG rect width */
-    height: 38px;         /* Trùng với SVG rect height */
-    z-index: 10;          /* Cao hơn SVG background */
+    left: 55px;   
+    top: 50px;    
+    width: 278.939px;
+    height: 38px;
+    z-index: 10;
     display: flex;
     align-items: center;
 }
@@ -374,7 +398,7 @@
     flex: 1;
     height: 100%;
     padding: 0 15px;
-    background: transparent;  /* Trong suốt để thấy SVG bên dưới */
+    background: transparent;
     border: none;
     outline: none;
     color: #ffffff;
@@ -388,12 +412,12 @@
 }
 
 #search-input:focus {
-    background: rgba(255, 255, 255, 0.05);  /* Nhẹ nhàng khi focus */
+    background: rgba(255, 255, 255, 0.05);
 }
 
 /* Search Button - Icon kính lúp */
 #search-button {
-    width: 55.0538px;     /* Trùng với nút gradient SVG */
+    width: 55.0538px;     /* Khớp với rect 2 width */
     height: 100%;
     background: transparent;
     border: none;
@@ -579,10 +603,11 @@
     height: 25px;
 }
 
-/* Product Detail Container - Thu nhỏ tối đa */
+/* Product Detail Container*/
 .product-detail-container {
   margin: 3px 10px;
   margin-top: -12px;
+  
 }
 
 .product-detail-header {
@@ -590,13 +615,14 @@
   justify-content: space-between;
   align-items: center;
   background: linear-gradient(to right, rgba(116,213,255,0.91) 17.6%, rgba(0,153,255,0.91) 47.47%);
-  padding: 6px 12px;  /* Giảm từ 8px 15px → 6px 12px */
-  border-radius: 8px 8px 0 0;
-  margin-bottom: 5px;  /* Giảm từ 8px → 5px */
+  padding: 6px 12px; 
+  margin-bottom: 5px; 
+  height: 65px;  
+  border-radius:0 0 8px 8px;
 }
 
 .case-label {
-  font-size: 14px;  /* Giảm từ 16px → 14px */
+  font-size: 14px;  
   font-weight: bold;
   color: #000;
 }
@@ -903,4 +929,24 @@
 .detail-btn:active {
   transform: translateY(-1px) !important;
   animation: none;
+}
+
+
+#import-modal-backdrop {
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(3px); /* Làm mờ nội dung phía sau (optional) */
+}
+
+/* Ẩn backdrop */
+#import-modal-backdrop.hidden {
+  display: none !important;
+}
+
+/* Modal overlay */
+#import-modal-overlay.hidden {
+  display: none !important;
+}
+#totalQuantity {
+  color: #009EDB !important;
+  font-weight: bold !important;
 }
