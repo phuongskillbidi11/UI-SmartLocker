@@ -35,10 +35,62 @@ function setExportedQuantity(caseNumber, productId, quantity) {
     }
     exportedQuantities[caseNumber][productId] = quantity;
 }
-// Initialize product data for a case
-// Mock data cho 25 cases - mỗi case có products riêng
-function initProductData(caseNumber) {
+// Fetch products by case from API (location === caseNumber)
+async function fetchProductsByCase(caseNumber) {
+    if (!window.SLApi || !SLApi.fetchProductsApi) return null;
+    const products = await SLApi.fetchProductsApi();
+    const filtered = (products || [])
+        .filter(p => Number.parseInt(p.location || p.partNumber, 10) === Number(caseNumber));
+
+    const mapped = await Promise.all(filtered.map(async p => {
+        let imageUrl = p.imageName && SLApi.buildImageUrl ? SLApi.buildImageUrl(p.imageName) : (p.imageName || '');
+
+        // Try to fetch first image for this product
+        if (!imageUrl && SLApi.fetchImagesApi) {
+            try {
+                const images = await SLApi.fetchImagesApi(p.id);
+                if (images && images.length) {
+                    const imgName = images[0].fileName || images[0].imageName || images[0].url;
+                    if (imgName) {
+                        imageUrl = SLApi.buildImageUrl ? SLApi.buildImageUrl(imgName) : imgName;
+                    }
+                }
+            } catch (err) {
+                console.warn('Could not fetch images for product', p.id, err);
+            }
+        }
+
+        if (!imageUrl) {
+            imageUrl = 'https://via.placeholder.com/67/009edb/ffffff?text=IMG';
+        }
+
+        return {
+            id: p.id,
+            name: p.productName,
+            description: p.description || '',
+            code: p.productCode,
+            image: imageUrl,
+            quantity: Number(p.quantity) || 0,
+        };
+    }));
+
+    return mapped.length ? mapped : [];
+}
+
+// Initialize product data for a case (prefers API, falls back to mock)
+async function initProductData(caseNumber) {
     if (!productsByCase[caseNumber]) {
+        // Try API first
+        try {
+            const apiProducts = await fetchProductsByCase(caseNumber);
+            if (apiProducts && apiProducts.length) {
+                productsByCase[caseNumber] = apiProducts;
+                return productsByCase[caseNumber];
+            }
+        } catch (err) {
+            console.warn('Could not load products from API, falling back to mock data', err);
+        }
+
         // Define mock data cho TỪNG CASE cụ thể
         const mockDataByCase = {
             // Case 1: Đầy đủ 4 loại
@@ -284,14 +336,14 @@ function initProductData(caseNumber) {
         };
         
         // Lấy data cho case cụ thể, nếu không có thì fallback về empty array
-        productsByCase[caseNumber] = mockDataByCase[caseNumber] || [];
+        // productsByCase[caseNumber] = mockDataByCase[caseNumber] || [];
     }
     
-    return productsByCase[caseNumber];
+    // return productsByCase[caseNumber];
 }
 
 // Show product list for a specific case
-function showProductList(caseNumber) {
+async function showProductList(caseNumber) {
     currentCase = caseNumber;
 
     if (typeof controlPanel !== 'undefined' && controlPanel) {
@@ -313,7 +365,7 @@ function showProductList(caseNumber) {
     if (caseTitle) caseTitle.textContent = `CASE ${caseNumber}`;
 
     // Khởi tạo dữ liệu & render
-    initProductData(caseNumber);
+    await initProductData(caseNumber);
     renderProductList();
 }
 // Hide product list and return to locker grid

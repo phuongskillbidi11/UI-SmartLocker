@@ -143,7 +143,7 @@ function togglePassword() {
 }
 
 // Handle login
-function handleLogin() {
+async function handleLogin() {
   const username = document.getElementById('username-input').value;
   const password = document.getElementById('password-input').value;
   
@@ -152,9 +152,10 @@ function handleLogin() {
     return;
   }
   
-  console.log('Login attempt:', { username, password });
+  console.log('Login attempt:', { username });
   
   const button = document.querySelector('.btn-15');
+  const originalHtml = button.innerHTML;
   button.classList.add('loading');
   button.innerHTML = `
     <svg class="spinner-icon" viewBox="0 0 24 24">
@@ -163,18 +164,34 @@ function handleLogin() {
     ĐANG ĐĂNG NHẬP...
   `;
   button.disabled = true;
-  
-  setTimeout(() => {
+
+  try {
+    const payload = { username, userCode: username, password };
+    const result = await window.SLApi.loginApi(payload);
+    const token = result?.token || result?.accessToken;
+    const user = result?.user || result?.data || null;
+
+    if (token) window.SLApi.setAuthToken(token);
+    if (user) window.SLApi.setAuthUser(user);
+
+    try { localStorage.setItem('smartlocker_login_time', new Date().toISOString()); } catch (e) {}
+
     window.location.href = 'Page1.html';
-  }, 800);
+  } catch (err) {
+    console.error('Login failed', err);
+    alert('Đăng nhập thất bại: ' + (err.message || 'Không thể kết nối máy chủ'));
+    button.classList.remove('loading');
+    button.innerHTML = originalHtml;
+    button.disabled = false;
+  }
 }
 
 // Initialize Login Form when DOM is ready
 function initLoginForm() {
   const loginForm = new LoginForm({
     containerId: 'login-form',
-    username: 'PhuongSmartLocker',
-    password: 'Admin@123'
+    username: 'phuong',
+    password: 'phuong@123'
   });
   loginForm.render();
   

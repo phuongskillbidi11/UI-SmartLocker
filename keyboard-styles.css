@@ -1,0 +1,128 @@
+/* ============ VIRTUAL KEYBOARD STYLES ============ */
+.custom-keyboard {
+  width: 100%;
+  background-color: #1f2937;
+  padding: 8px;
+  border-radius: 8px;
+  box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.custom-keyboard .hg-row {
+  margin-bottom: 8px;
+  display: flex;
+  gap: 4px;
+}
+
+.custom-keyboard .hg-row:last-child {
+  margin-bottom: 0;
+}
+
+.custom-keyboard .hg-button {
+  flex: 1;
+  padding: 12px 8px;
+  background-color: #374151;
+  border: 1px solid #4b5563;
+  color: #f3f4f6;
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  user-select: none;
+  text-transform: uppercase;
+}
+
+.custom-keyboard .hg-button:active {
+  background-color: #009EDB;
+  border-color: #00d4ff;
+  color: white;
+  box-shadow: 0 0 8px rgba(0, 158, 219, 0.5);
+}
+
+.custom-keyboard .hg-button:hover {
+  background-color: #4b5563;
+  border-color: #6b7280;
+}
+
+.custom-keyboard .hg-button.hg-standardBtn {
+  flex: 0 1 calc(10% - 4px);
+  min-width: 40px;
+}
+
+.custom-keyboard .hg-button[data-skbtn="backspace"] {
+  flex: 0 1 calc(15% - 4px);
+  background-color: #dc2626;
+  border-color: #b91c1c;
+}
+
+.custom-keyboard .hg-button[data-skbtn="backspace"]:hover {
+  background-color: #ef4444;
+  border-color: #dc2626;
+}
+
+.custom-keyboard .hg-button[data-skbtn="backspace"]:active {
+  background-color: #991b1b;
+  border-color: #7f1d1d;
+}
+
+.custom-keyboard .hg-button[data-skbtn="space"] {
+  flex: 1 1 auto;
+  min-width: 150px;
+}
+
+.custom-keyboard .hg-button[data-skbtn="shift"] {
+  flex: 0 1 calc(12% - 4px);
+  background-color: #9333ea;
+  border-color: #7e22ce;
+}
+
+.custom-keyboard .hg-button[data-skbtn="shift"]:hover {
+  background-color: #a855f7;
+  border-color: #9333ea;
+}
+
+.custom-keyboard .hg-button[data-skbtn="enter"] {
+  flex: 0 1 calc(15% - 4px);
+  background-color: #059669;
+  border-color: #047857;
+}
+
+.custom-keyboard .hg-button[data-skbtn="enter"]:hover {
+  background-color: #10b981;
+  border-color: #059669;
+}
+
+.custom-keyboard .hg-button[data-skbtn="enter"]:active {
+  background-color: #065f46;
+  border-color: #047857;
+}
+
+#keyboard {
+  animation: slideUp 0.3s ease-out;
+}
+
+#keyboard.hidden {
+  animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slideDown {
+  from {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+}

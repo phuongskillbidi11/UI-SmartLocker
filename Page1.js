@@ -4,6 +4,65 @@ class ControlPanel {
     this.currentProduct = null; // Lưu sản phẩm đang xem
     this.currentCase = null; // Lưu case number
     this.tempQuantity = 0; // Lưu số lượng tạm thời khi xem chi tiết
+    this.historyData = [];
+    this.historyLoading = false;
+    this.historyError = null;
+// ============ AUTH CHECK & USER INFO ON PAGE LOAD ============
+// Inject clear button into search container on page load
+function renderUserInfo(name, time) {
+  const userNameElement = document.getElementById('userNameText');
+  const loginTimeElement = document.getElementById('loginTimeText');
+  
+  if (userNameElement) {
+    userNameElement.textContent = name || 'User';
+  }
+  if (loginTimeElement) {
+    loginTimeElement.textContent = `Đăng nhập: ${time || '--:-- - --/--/----'}`;
+  }
+}
+document.addEventListener('DOMContentLoaded', function() {
+  const searchContainer = document.getElementById('search-container');
+  if (searchContainer && !document.getElementById('search-clear')) {
+    const clearBtn = document.createElement('button');
+    clearBtn.id = 'search-clear';
+    clearBtn.innerHTML = '✕';
+    clearBtn.onclick = clearSearch;
+    clearBtn.style.cssText = 'position: absolute; right: 65px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; color: #999; font-size: 20px; display: none; padding: 5px 8px;';
+    searchContainer.insertBefore(clearBtn, document.getElementById('search-button'));
+  }
+}, { once: true });
+
+  document.addEventListener('DOMContentLoaded', function() {
+    // Check if user is logged in
+    if (typeof SLApi !== 'undefined' && SLApi.getAuthToken) {
+      const token = SLApi.getAuthToken();
+      
+      if (!token) {
+        // Not logged in, redirect to login page
+        console.warn('User not logged in. Redirecting to Page.html');
+        window.location.href = './Page.html';
+        return;
+      }
+      
+      // User is logged in, display user info
+      const user = SLApi.getAuthUser ? SLApi.getAuthUser() : null;
+      if (user) {
+        const userName = user.userCode || user.username || user.name || 'User';
+        const loginTime = user.loginTime || new Date().toLocaleString('vi-VN');
+        
+        const userNameElement = document.getElementById('userNameText');
+        const loginTimeElement = document.getElementById('loginTimeText');
+        
+        if (userNameElement) {
+          userNameElement.textContent = userName;
+        }
+        if (loginTimeElement) {
+          loginTimeElement.textContent = `Đăng nhập: ${loginTime}`;
+        }
+      }
+    }
+  });
+
   }
 
   getLabelPosition() {
@@ -100,6 +159,9 @@ class ControlPanel {
             <span class="time-label">Thời Gian Nhập Hàng : ${currentDate}</span>
           </div>
         </div>
+
+        <!-- Hidden file input for image upload -->
+        <input id="productImageInput" type="file" accept="image/*" class="hidden" onchange="controlPanel.onImageChosen(event)" />
 
         <!-- Main Content -->
         <div class="product-detail-content">
@@ -228,6 +290,20 @@ class ControlPanel {
             <span>Chọn Ảnh</span>
           </button>
 
+          <button class="detail-btn detail-btn-save" onclick="controlPanel.saveProductInfo()">
+            <div class="text">
+              <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M17 3H7a2 2 0 0 0-2 2v14l7-3 7 3V5a2 2 0 0 0-2-2z" fill="currentColor"/>
+              </svg>
+              <span>Lưu Thông Tin</span>
+            </div>
+            <div class="icon">
+              <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M17 3H7a2 2 0 0 0-2 2v14l7-3 7 3V5a2 2 0 0 0-2-2z" fill="currentColor"/>
+              </svg>
+            </div>
+          </button>
+
           <button class="detail-btn detail-btn-back" onclick="controlPanel.backToProductList()">
             <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M15 18L9 12L15 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -343,10 +419,68 @@ class ControlPanel {
   }
 
   chooseImage() {
-    alert('Chức năng chọn ảnh');
+    const input = document.getElementById('productImageInput');
+    if (input) input.click();
   }
 
-  importProduct() {
+  async onImageChosen(evt) {
+    try {
+      if (!this.currentProduct) return;
+      const file = evt.target && evt.target.files && evt.target.files[0];
+      if (!file) return;
+      if (!window.SLApi || !SLApi.uploadImageApi) {
+        alert('API tải ảnh chưa sẵn sàng');
+        return;
+      }
+      const uploaded = await SLApi.uploadImageApi(file, this.currentProduct.id);
+      // Server may return object or array
+      let imageName;
+      if (Array.isArray(uploaded) && uploaded.length) {
+        imageName = uploaded[0].fileName || uploaded[0].imageName || uploaded[0].url;
+      } else if (uploaded && typeof uploaded === 'object') {
+        imageName = uploaded.fileName || uploaded.imageName || uploaded.url;
+      }
+      if (!imageName) {
+        alert('Tải ảnh thành công nhưng không nhận được tên file');
+        return;
+      }
+      const url = SLApi.buildImageUrl ? SLApi.buildImageUrl(imageName) : imageName;
+      this.currentProduct.image = url;
+      // Re-render modal
+      const modalContent = document.getElementById('import-modal-content');
+      if (modalContent) modalContent.innerHTML = this.generateProductDetail();
+    } catch (err) {
+      console.error(err);
+      alert('Tải ảnh thất bại');
+    } finally {
+      const input = document.getElementById('productImageInput');
+      if (input) input.value = '';
+    }
+  }
+
+  async saveProductInfo() {
+    if (!this.currentProduct) return;
+    try {
+      const nameInput = document.getElementById(`productName_${this.currentProduct.id}`);
+      const descInput = document.getElementById(`productDesc_${this.currentProduct.id}`);
+      const payload = {
+        productName: nameInput ? nameInput.value : this.currentProduct.name,
+        description: descInput ? descInput.value : this.currentProduct.description,
+      };
+      if (window.SLApi && SLApi.updateProductApi) {
+        await SLApi.updateProductApi(this.currentProduct.id, payload);
+      }
+      // Update local state
+      this.currentProduct.name = payload.productName;
+      this.currentProduct.description = payload.description;
+      alert('Đã lưu thông tin sản phẩm');
+    } catch (err) {
+      console.error(err);
+      alert('Lưu thông tin thất bại');
+    }
+  }
+
+  async importProduct() {
     if (!this.currentProduct || !this.currentCase) return;
     
     if (!this.tempQuantity || this.tempQuantity <= 0) {
@@ -364,11 +498,47 @@ class ControlPanel {
     
     if (nameInput) this.currentProduct.name = nameInput.value;
     if (descInput) this.currentProduct.description = descInput.value;
-    
+
+    // Calculate new total quantity
+    const newTotalQuantity = (this.currentProduct.quantity || 0) + quantityToAdd;
+
+    // Persist to backend: update product and record history
+    try {
+      console.log('Import API: updating product', {
+        productId: this.currentProduct.id,
+        location: this.currentCase,
+        newQuantity: newTotalQuantity,
+        quantityAdded: quantityToAdd
+      });
+
+      // Step 1: Update product stock and location
+      if (window.SLApi && SLApi.updateProductApi) {
+        const updatePayload = {
+          location: String(this.currentCase), // Backend expects location as string
+          quantity: newTotalQuantity,
+        };
+        console.log('Sending update payload:', updatePayload);
+        const updateResult = await SLApi.updateProductApi(this.currentProduct.id, updatePayload);
+        console.log('Update result:', updateResult);
+      } else {
+        throw new Error('updateProductApi không có sẵn');
+      }
+
+      // Step 2: Add to local import list (don't save to history yet)
+      console.log('History will be saved when user clicks "Xác Nhận Nhập"');
+    } catch (err) {
+      console.error('Import API failed:', err);
+      const errorMsg = err.message || err.toString();
+      alert(`Lỗi nhập vật tư:\n${errorMsg}\n\nVui lòng kiểm tra kết nối với server.`);
+      return;
+    }
+
+    // Update local inventory on success
     if (typeof addProductToInventory === 'function') {
       addProductToInventory(this.currentProduct.id, quantityToAdd);
     }
     
+    // Update or add to import list
     const existingIndex = window.importList.findIndex(item => 
       item.maVatTu === this.currentProduct.code && 
       item.viTri === this.currentCase
@@ -379,6 +549,7 @@ class ControlPanel {
       window.importList[existingIndex].tenVatTu = this.currentProduct.name;
     } else {
       window.importList.push({
+        productId: this.currentProduct.id,
         maVatTu: this.currentProduct.code,
         tenVatTu: this.currentProduct.name,
         viTri: this.currentCase,
@@ -393,19 +564,21 @@ class ControlPanel {
     if (modalBackdrop) modalBackdrop.classList.add('hidden');
     if (modalOverlay) modalOverlay.classList.add('hidden');
     
+    // Refresh product list to show updated quantity
     if (typeof renderProductList === 'function') {
       renderProductList(this.currentCase);
     }
     
-    // Reset trạng thái
+    // Reset state
     this.currentView = 'import';
     this.currentProduct = null;
     this.tempQuantity = 0;
     
-    // Render lại control panel
+    // Render control panel and show success
     this.render('control-panel');
     
-    console.log('Đã thêm vào danh sách nhập:', window.importList);
+    console.log('✓ Nhập vật tư thành công:', window.importList);
+    alert(`✓ Nhập thành công: ${this.currentProduct?.name || 'Sản phẩm'} x${quantityToAdd}`);
   }
 
   generateActionButtons() {
@@ -495,27 +668,56 @@ class ControlPanel {
   }
 
   generateHistoryTable() {
-    // Dữ liệu mẫu lịch sử
-    const historyData = [
-      { maVatTu: 'JGW87914', tenVatTu: 'Nón bảo hộ', viTri: 2, soLuong: 1, thoiGianXuat: '09:50 - 17/11/2025', thoiGianNhap: '15:50 - 20/11/2025', trangThai: 'Đã Nhập' },
-      { maVatTu: 'JGW87912', tenVatTu: 'Mắt kính', viTri: 4, soLuong: 3, thoiGianXuat: '13:50 - 14/11/2025', thoiGianNhap: '', trangThai: 'Đã Xuất' },
-      { maVatTu: 'JGW87914', tenVatTu: 'Nón bảo hộ', viTri: 2, soLuong: 1, thoiGianXuat: '09:50 - 17/11/2025', thoiGianNhap: '15:50 - 20/11/2025', trangThai: 'Đã Nhập' },
-      { maVatTu: 'JGW87912', tenVatTu: 'Mắt kính', viTri: 4, soLuong: 3, thoiGianXuat: '13:50 - 14/11/2025', thoiGianNhap: '', trangThai: 'Đã Xuất' }
-    ];
+    if (this.historyLoading) {
+      return `
+        <div class="history-container">
+          <div class="table-wrapper">
+            <table class="history-table">
+              <tbody>
+                <tr><td style="padding: 18px; color: rgba(255,255,255,0.7); text-align:center;">Đang tải lịch sử...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      `;
+    }
 
-    const rows = historyData.map(item => `
+    if (this.historyError) {
+      return `
+        <div class="history-container">
+          <div class="table-wrapper">
+            <table class="history-table">
+              <tbody>
+                <tr><td style="padding: 18px; color: #ff9e9e; text-align:center;">${this.historyError}</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      `;
+    }
+
+    const rows = (this.historyData || []).length > 0 ? this.historyData.map(item => {
+      const created = item.createdAt ? new Date(item.createdAt) : null;
+      const timeLabel = created ? created.toLocaleString('vi-VN') : '';
+      const statusLabel = item.quantity >= 0 ? 'Nhập' : 'Xuất';
+      return `
+        <tr>
+          <td>${item.productCode || ''}</td>
+          <td>${item.productName || ''}</td>
+          <td>${item.location || ''}</td>
+          <td>${Math.abs(item.quantity || 0)}</td>
+          <td>${timeLabel}</td>
+          <td>${item.userCode || ''}</td>
+          <td class="status-cell ${statusLabel === 'Nhập' ? 'status-nhap' : 'status-xuat'}">${statusLabel}</td>
+        </tr>
+      `;
+    }).join('') : `
       <tr>
-        <td>${item.maVatTu}</td>
-        <td>${item.tenVatTu}</td>
-        <td>${item.viTri}</td>
-        <td>${item.soLuong}</td>
-        <td>${item.thoiGianXuat}</td>
-        <td>${item.thoiGianNhap}</td>
-        <td class="status-cell ${item.trangThai === 'Đã Nhập' ? 'status-nhap' : 'status-xuat'}">
-          ${item.trangThai}
+        <td colspan="7" style="text-align: center; padding: 20px; color: rgba(255,255,255,0.5);">
+          Chưa có dữ liệu lịch sử.
         </td>
       </tr>
-    `).join('');
+    `;
 
     return `
       <div class="history-container">
@@ -527,9 +729,9 @@ class ControlPanel {
                 <th>Tên Vật Tư</th>
                 <th>Vị Trí</th>
                 <th>Số Lượng</th>
-                <th>Thời Gian Xuất</th>
-                <th>Thời Gian Nhập</th>
-                <th>Trạng Thái</th>
+                  <th>Thời Gian</th>
+                  <th>Người Dùng</th>
+                  <th>Trạng Thái</th>
               </tr>
             </thead>
             <tbody>
@@ -724,11 +926,48 @@ function confirmImport() {
   }
   
   console.log('Xác nhận nhập vật tư:', window.importList);
-  alert('Đang xác nhận nhập ' + window.importList.length + ' vật tư...');
   
-  // Sau khi xác nhận, xóa danh sách
-  window.importList = [];
-  controlPanel.showImport();  // Refresh lại bảng
+  // Save all entries to backend history
+  (async function() {
+    try {
+      const user = window.SLApi && SLApi.getAuthUser ? SLApi.getAuthUser() : null;
+      const userCode = user && (user.userCode || user.username || user.name) || 'unknown';
+      
+      let savedCount = 0;
+      let errorCount = 0;
+      
+      for (const item of window.importList) {
+        try {
+          if (window.SLApi && SLApi.recordHistoryApi) {
+            await SLApi.recordHistoryApi({
+              userCode: userCode,
+              productName: item.tenVatTu,
+              productCode: item.maVatTu,
+              location: String(item.viTri), // Convert to string as backend expects
+              quantity: item.soLuong,
+            });
+            savedCount++;
+            console.log(`✓ Saved history for ${item.maVatTu}`);
+          }
+        } catch (err) {
+          errorCount++;
+          console.error(`✗ Failed to save history for ${item.maVatTu}:`, err);
+        }
+      }
+      
+      // Show result
+      if (errorCount === 0) {
+        alert(`✓ Đã lưu thành công ${savedCount} vật tư vào lịch sử!`);
+        window.importList = [];
+        controlPanel.showImport(); // Refresh to show empty list
+      } else {
+        alert(`⚠ Lưu ${savedCount}/${window.importList.length} vật tư.\n${errorCount} vật tư lỗi. Vui lòng thử lại.`);
+      }
+    } catch (err) {
+      console.error('Confirm import error:', err);
+      alert('Lỗi khi lưu lịch sử. Vui lòng thử lại.');
+    }
+  })();
 }
 function caiDat() {
   console.log('Cài đặt');
@@ -812,5 +1051,131 @@ document.addEventListener('DOMContentLoaded', () => {
   controlPanel = new ControlPanel();
   controlPanel.render('control-panel');
 
+  try {
+    const raw = localStorage.getItem('smartlocker_user');
+    const user = raw ? JSON.parse(raw) : null;
+    const name = user && (user.userCode || user.username || user.name) || 'Người dùng';
+    const iso = localStorage.getItem('smartlocker_login_time');
+    const d = iso ? new Date(iso) : new Date();
+    const timeStr = d.toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' }).replace(',', ' -');
+    const nameNode = document.getElementById('userNameText');
+    const timeNode = document.getElementById('loginTimeText');
+    if (nameNode) nameNode.textContent = name;
+    if (timeNode) timeNode.textContent = 'Đăng nhập: ' + timeStr;
+  } catch (e) { console.warn('Set user info failed', e); }
+
   console.log('Page1 initialized');
+  // Setup search interactions
+  setupSearchFiltering();
 });
+
+// Global search/filter by keyword to show only matching cases
+function setupSearchFiltering() {
+  const input = document.getElementById('search-input');
+  const button = document.getElementById('search-button');
+  if (!input || !button) return;
+
+  let allProductsCache = null;
+
+  async function loadAllProducts() {
+    if (allProductsCache) return allProductsCache;
+    try {
+      if (window.SLApi && SLApi.fetchProductsApi) {
+        const products = await SLApi.fetchProductsApi();
+        allProductsCache = (products || []).map(p => ({
+          code: p.productCode || '',
+          name: p.productName || '',
+          description: p.description || '',
+          location: parseInt(p.location || p.partNumber, 10)
+        }));
+        return allProductsCache;
+      }
+    } catch (e) {
+      console.warn('Search: fetchProductsApi failed, fallback to local data', e);
+    }
+    // Fallback: build from local productsByCase if available
+    try {
+      const result = [];
+      if (typeof productsByCase === 'object') {
+        Object.keys(productsByCase).forEach(k => {
+          const loc = parseInt(k, 10);
+          (productsByCase[k] || []).forEach(p => {
+            result.push({ code: p.code || '', name: p.name || '', description: p.description || '', location: loc });
+          });
+        });
+      }
+      allProductsCache = result;
+      return allProductsCache;
+    } catch (_) {
+      allProductsCache = [];
+      return allProductsCache;
+    }
+  }
+
+  function normalize(str) {
+    return (str || '').toString().toLowerCase();
+  }
+
+  async function runSearch() {
+    const q = normalize(input.value.trim());
+    const lockers = Array.from(document.querySelectorAll('#locker-grid .locker-item'));
+    if (!q) {
+      lockers.forEach(el => el.classList.remove('hidden'));
+      return;
+    }
+    const all = await loadAllProducts();
+    const matchingLocations = new Set(
+      all.filter(p => normalize(p.code).includes(q) || normalize(p.name).includes(q) || normalize(p.description).includes(q))
+         .map(p => parseInt(p.location, 10))
+         .filter(n => Number.isFinite(n))
+    );
+    lockers.forEach(el => {
+      const part = parseInt(el.getAttribute('data-part'), 10);
+      if (matchingLocations.has(part)) {
+        el.classList.remove('hidden');
+      } else {
+        el.classList.add('hidden');
+      }
+    });
+  }
+
+  let typingTimer = null;
+  input.addEventListener('input', () => {
+    if (typingTimer) clearTimeout(typingTimer);
+    typingTimer = setTimeout(runSearch, 250);
+  });
+  button.addEventListener('click', runSearch);
+
+// Clear search input and show all products
+function clearSearch() {
+  const input = document.getElementById('search-input');
+  const clearBtn = document.getElementById('search-clear');
+  const lockers = Array.from(document.querySelectorAll('#locker-grid .locker-item'));
+  
+  if (input) {
+    input.value = '';
+    input.focus();
+  }
+  if (clearBtn) {
+    clearBtn.style.display = 'none';
+  }
+  // Show all locker items
+  lockers.forEach(el => el.classList.remove('hidden'));
+}
+
+// Show clear button when typing in search
+document.addEventListener('DOMContentLoaded', function() {
+  const input = document.getElementById('search-input');
+  const clearBtn = document.getElementById('search-clear');
+  
+  if (input && clearBtn) {
+    input.addEventListener('input', function() {
+      if (input.value.trim()) {
+        clearBtn.style.display = 'block';
+      } else {
+        clearBtn.style.display = 'none';
+      }
+    });
+  }
+});
+}

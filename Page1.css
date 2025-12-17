@@ -931,6 +931,62 @@
   animation: none;
 }
 
+/* Lưu Thông Tin Button - Match import style with Text/Icon swap */
+.detail-btn-save {
+  background: linear-gradient(68.2deg, #124a83 20.2%, #3698cf 85.31%);
+  color: #fff;
+  box-shadow: 0 0 10px rgba(0, 224, 255, 0.3);
+  overflow: hidden;
+  position: relative;
+}
+
+.detail-btn-save::before {
+  background: rgba(0, 255, 234, 0.3);
+}
+
+.detail-btn-save .text {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  transition: all 0.4s ease;
+  width: 100%;
+  justify-content: center;
+}
+
+.detail-btn-save .icon {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.4s ease;
+}
+
+.detail-btn-save:hover {
+  box-shadow: 
+    0 0 20px rgba(0, 224, 255, 0.5),
+    0 0 35px rgba(0, 224, 255, 0.3);
+  transform: translateY(-3px);
+  animation: detail-pulse-glow 1.5s ease-in-out infinite;
+}
+
+.detail-btn-save:hover .text {
+  top: -50%;
+}
+
+.detail-btn-save:hover .icon {
+  top: 50%;
+  transform: translate(-50%, -50%);
+}
+
 
 #import-modal-backdrop {
   background: rgba(0, 0, 0, 0.85);

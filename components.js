@@ -8,7 +8,7 @@ class LockerItem {
     this.left = config.left || '0';
     this.top = config.top || '0';
     this.partNumber = config.partNumber || 1;
-    this.points = config.points || 1000;
+    this.points = config.points || 0;
     this.status = config.status || 'available';
   }
   generateFrameSVG() {
@@ -85,6 +85,7 @@ class LockerItem {
     return `
       <div class="locker-item" 
           style="width: ${this.width}; height: ${this.height}; position: absolute; left: ${this.left}; top: ${this.top};"
+          data-part="${this.partNumber}"
           onclick="showProductList(${this.partNumber})">
         ${this.generateFrameSVG()}
         <p class="absolute left-[55px] top-[6px] text-[10px] font-bold pointer-events-none" 
@@ -128,44 +129,77 @@ class LockerItem {
 class LockerGrid {
   constructor() {
     this.lockers = [];
+    this.layout = this.buildLayout();
     this.initializeLockers();
+    this.render('locker-grid');
+    this.loadLockersFromApi();
   }
 
-  initializeLockers() {
-    const lockerConfigs = [
+  buildLayout() {
+    return [
       // Row 1
-      { partNumber: 1, left: '0px', top: '65px', points: 1000, status: 'available' },
-      { partNumber: 2, left: '130px', top: '65px', points: 1000, status: 'available' },
-      { partNumber: 3, left: '260px', top: '65px', points: 1000, status: 'occupied' },
-      { partNumber: 4, left: '390px', top: '65px', points: 1000, status: 'available' },
-      { partNumber: 5, left: '520px', top: '65px', points: 1500, status: 'available' },
+      { partNumber: 1, left: '0px', top: '65px' },
+      { partNumber: 2, left: '130px', top: '65px' },
+      { partNumber: 3, left: '260px', top: '65px' },
+      { partNumber: 4, left: '390px', top: '65px' },
+      { partNumber: 5, left: '520px', top: '65px' },
       // Row 2
-      { partNumber: 6, left: '0px', top: '178px', points: 1000, status: 'available' },
-      { partNumber: 7, left: '130px', top: '178px', points: 1000, status: 'available' },
-      { partNumber: 8, left: '260px', top: '178px', points: 1000, status: 'available' },
-      { partNumber: 9, left: '390px', top: '178px', points: 1000, status: 'available' },
+      { partNumber: 6, left: '0px', top: '178px' },
+      { partNumber: 7, left: '130px', top: '178px' },
+      { partNumber: 8, left: '260px', top: '178px' },
+      { partNumber: 9, left: '390px', top: '178px' },
       
       // Row 3
-      { partNumber: 10, left: '0px', top: '296px', points: 1000, status: 'available' },
-      { partNumber: 12, left: '130px', top: '296px', points: 1000, status: 'available' },
-      { partNumber: 13, left: '260px', top: '296px', points: 1000, status: 'available' },
-      { partNumber: 14, left: '390px', top: '296px', points: 1000, status: 'occupied' },
+      { partNumber: 10, left: '0px', top: '296px' },
+      { partNumber: 12, left: '130px', top: '296px' },
+      { partNumber: 13, left: '260px', top: '296px' },
+      { partNumber: 14, left: '390px', top: '296px' },
 
       // Row 4
-      { partNumber: 16, left: '0px', top: '416px', points: 1000, status: 'available' },
-      { partNumber: 17, left: '130px', top: '416px', points: 1000, status: 'available' },
-      { partNumber: 18, left: '260px', top: '416px', points: 1000, status: 'occupied' },
-      { partNumber: 19, left: '390px', top: '416px', points: 1000, status: 'available' },
-      { partNumber: 20, left: '520px', top: '416px', points: 1000, status: 'available' },
+      { partNumber: 16, left: '0px', top: '416px' },
+      { partNumber: 17, left: '130px', top: '416px' },
+      { partNumber: 18, left: '260px', top: '416px' },
+      { partNumber: 19, left: '390px', top: '416px' },
+      { partNumber: 20, left: '520px', top: '416px' },
       //Row5
-      { partNumber: 21, left: '0px', top: '536px', points: 1000, status: 'available' },
-      { partNumber: 22, left: '130px', top: '536px', points: 1000, status: 'available' },
-      { partNumber: 23, left: '260px', top: '536px', points: 1000, status: 'occupied' },
-      { partNumber: 24, left: '390px', top: '536px', points: 1000, status: 'available' },
-      { partNumber: 25, left: '520px', top: '536px', points: 1000, status: 'available' },
+      { partNumber: 21, left: '0px', top: '536px' },
+      { partNumber: 22, left: '130px', top: '536px' },
+      { partNumber: 23, left: '260px', top: '536px' },
+      { partNumber: 24, left: '390px', top: '536px' },
+      { partNumber: 25, left: '520px', top: '536px' },
     ];
+  }
 
-    this.lockers = lockerConfigs.map(config => new LockerItem(config));
+  initializeLockers(totalByPart = {}) {
+    this.lockers = this.layout.map(config => {
+      const points = totalByPart[config.partNumber] || 0;
+      const status = points > 0 ? 'available' : 'occupied';
+      return new LockerItem({ ...config, points, status });
+    });
+  }
+
+  async loadLockersFromApi() {
+    if (!window.SLApi || !SLApi.fetchProductsApi) {
+      console.warn('SLApi not available; keeping static locker layout');
+      return;
+    }
+
+    try {
+      const products = await SLApi.fetchProductsApi();
+      const totalByPart = {};
+
+      (products || []).forEach(p => {
+        const part = parseInt(p.location || p.partNumber, 10);
+        if (!Number.isFinite(part)) return;
+        const qty = Number(p.quantity) || 0;
+        totalByPart[part] = (totalByPart[part] || 0) + qty;
+      });
+
+      this.initializeLockers(totalByPart);
+      this.render('locker-grid');
+    } catch (err) {
+      console.error('Failed to load lockers from API', err);
+    }
   }
 
   render(containerId) {

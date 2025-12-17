@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Virtual Keyboard Test</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/simple-keyboard@latest/build/index.min.css">
+    <link rel="stylesheet" href="keyboard-styles.css">
+    <style>
+        body { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; padding: 20px; }
+        .container { max-width: 600px; margin: 0 auto; background: white; border-radius: 12px; padding: 30px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
+        .test-section { margin-bottom: 25px; padding: 20px; border: 2px solid #e5e7eb; border-radius: 8px; }
+        .test-section h3 { color: #1f2937; margin-bottom: 12px; font-weight: 600; }
+        input { width: 100%; padding: 12px; border: 2px solid #e5e7eb; border-radius: 6px; font-size: 16px; margin-bottom: 10px; }
+        input:focus { outline: none; border-color: #009EDB; box-shadow: 0 0 0 3px rgba(0, 158, 219, 0.1); }
+        button { background: #009EDB; color: white; padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; font-weight: 500; }
+        button:hover { background: #0088b8; }
+        .status { padding: 15px; background: #f0fdf4; border-left: 4px solid #22c55e; border-radius: 4px; margin-top: 15px; }
+        .status.error { background: #fef2f2; border-left-color: #ef4444; }
+        .keyboard-section { margin-top: 40px; padding-top: 20px; border-top: 2px solid #e5e7eb; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 style="color: #1f2937; margin-bottom: 30px;">Virtual Keyboard Testing</h1>
+        
+        <div class="test-section">
+            <h3>1. Text Input Test</h3>
+            <label style="color: #666; font-size: 14px;">Try typing your name:</label>
+            <input type="text" id="textInput" placeholder="Click here and use virtual keyboard">
+            <p style="font-size: 13px; color: #666; margin-top: 8px;">Expected: Virtual keyboard appears at bottom</p>
+        </div>
+
+        <div class="test-section">
+            <h3>2. Number Input Test</h3>
+            <label style="color: #666; font-size: 14px;">Try entering a quantity:</label>
+            <input type="number" id="numberInput" placeholder="Click here for numbers">
+            <p style="font-size: 13px; color: #666; margin-top: 8px;">Expected: Numbers 0-9 work correctly</p>
+        </div>
+
+        <div class="test-section">
+            <h3>3. Email Test</h3>
+            <label style="color: #666; font-size: 14px;">Try typing an email address:</label>
+            <input type="text" id="emailInput" placeholder="test@example.com">
+            <p style="font-size: 13px; color: #666; margin-top: 8px;">Expected: @, .com buttons work for email</p>
+        </div>
+
+        <div class="test-section">
+            <h3>4. Search Test</h3>
+            <label style="color: #666; font-size: 14px;">Try searching:</label>
+            <input type="search" id="searchInput" placeholder="Product search...">
+            <p style="font-size: 13px; color: #666; margin-top: 8px;">Expected: Keyboard shows for search input</p>
+        </div>
+
+        <div class="test-section">
+            <h3>5. Textarea Test</h3>
+            <label style="color: #666; font-size: 14px;">Try typing a description:</label>
+            <textarea id="textareaInput" style="width: 100%; padding: 12px; border: 2px solid #e5e7eb; border-radius: 6px; font-size: 16px; font-family: inherit; height: 100px;" placeholder="Multi-line text area..."></textarea>
+            <p style="font-size: 13px; color: #666; margin-top: 8px;">Expected: Keyboard supports multi-line input</p>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;">
+            <button onclick="clearAllInputs()" style="background: #6b7280;">Clear All</button>
+            <button onclick="testKeyboardFunctions()" style="background: #009EDB;">Test Functions</button>
+        </div>
+
+        <div id="status" class="status" style="display: none;"></div>
+
+        <div class="keyboard-section">
+            <h2 style="color: #1f2937; margin-bottom: 15px; font-size: 18px;">Keyboard Container</h2>
+            <p style="color: #666; font-size: 14px; margin-bottom: 15px;">The virtual keyboard appears below:</p>
+            <div id="keyboard" class="hidden fixed bottom-0 left-0 w-full bg-gray-800 p-2 z-[1001]" style="position: static; max-height: 350px; margin-top: 20px;"></div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/simple-keyboard@latest/build/index.min.js"></script>
+    <script src="virtual-keyboard.js"></script>
+
+    <script>
+        function clearAllInputs() {
+            document.getElementById('textInput').value = '';
+            document.getElementById('numberInput').value = '';
+            document.getElementById('emailInput').value = '';
+            document.getElementById('searchInput').value = '';
+            document.getElementById('textareaInput').value = '';
+            showStatus('All inputs cleared', false);
+        }
+
+        function testKeyboardFunctions() {
+            const status = document.getElementById('status');
+            let tests = [];
+
+            // Test 1: Check if keyboard exists
+            if (window.virtualKeyboard) {
+                tests.push('✓ Virtual keyboard initialized');
+            } else {
+                tests.push('✗ Virtual keyboard NOT initialized');
+            }
+
+            // Test 2: Check SimpleKeyboard library
+            if (window.SimpleKeyboard) {
+                tests.push('✓ SimpleKeyboard library loaded');
+            } else {
+                tests.push('✗ SimpleKeyboard library NOT loaded');
+            }
+
+            // Test 3: Check functions
+            const functions = ['initVirtualKeyboard', 'showVirtualKeyboard', 'hideVirtualKeyboard', 'onKeyPress', 'attachKeyboardToInputs'];
+            let allFunctionsExist = true;
+            for (let func of functions) {
+                if (typeof window[func] === 'function') {
+                    tests.push(`✓ Function ${func}() exists`);
+                } else {
+                    tests.push(`✗ Function ${func}() missing`);
+                    allFunctionsExist = false;
+                }
+            }
+
+            // Test 4: Check CSS styling
+            const keyboardDiv = document.getElementById('keyboard');
+            if (keyboardDiv) {
+                tests.push('✓ Keyboard container div found');
+                const computedStyle = window.getComputedStyle(keyboardDiv);
+                if (computedStyle.backgroundColor) {
+                    tests.push('✓ Keyboard styles applied');
+                }
+            } else {
+                tests.push('✗ Keyboard container div NOT found');
+            }
+
+            showStatus(tests.join('\n'), allFunctionsExist);
+        }
+
+        function showStatus(message, isSuccess = true) {
+            const status = document.getElementById('status');
+            status.textContent = message;
+            status.className = 'status' + (isSuccess ? '' : ' error');
+            status.style.display = 'block';
+        }
+
+        // Auto-test on load
+        window.addEventListener('load', function() {
+            setTimeout(function() {
+                testKeyboardFunctions();
+            }, 500);
+        });
+
+        // Add some demo text to show keyboard working
+        console.log('Virtual Keyboard Test Page Ready');
+        console.log('Click on any input field to see the keyboard');
+        console.log('Keyboard object:', window.virtualKeyboard);
+        console.log('SimpleKeyboard library:', window.SimpleKeyboard);
+    </script>
+</body>
+</html>

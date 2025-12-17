@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Smart Locker</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    html, body {
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      width: 100%;
+      height: 100%;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+    
+    .product-list-container {
+      overflow-y: scroll;
+      scrollbar-width: thin;
+      scrollbar-color: #585858 #b2b2b2;
+    }
+    
+    .product-list-container::-webkit-scrollbar {
+      width: 10px;
+    }
+    
+    .product-list-container::-webkit-scrollbar-track {
+      background: #b2b2b2;
+      border-radius: 5px;
+    }
+    
+    .product-list-container::-webkit-scrollbar-thumb {
+      background: #585858;
+      border-radius: 5px;
+    }
+    
+    .product-item {
+      min-height: 87px;
+      margin-bottom: 12px;
+    }
+    
+    /* Product Card Styling */
+    .product-card {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      padding: 10px;
+      background: #009edb;
+      border-radius: 10px;
+      box-shadow: 0px 4px 4px rgba(0,0,0,0.25);
+      position: relative;
+      width: 542px;
+      min-height: 87px;
+    }
+    
+    .product-image {
+      width: 67px;
+      height: 67px;
+      object-fit: cover;
+      border-radius: 5px;
+      flex-shrink: 0;
+    }
+    
+    .product-info {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    
+    .product-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    
+    .product-name {
+      font-size: 20px;
+      font-weight: bold;
+      color: #000;
+      flex: 1;
+      padding: 4px 8px;
+      background: #d9d9d9;
+      border-radius: 5px;
+    }
+    
+    .product-code {
+      font-size: 15px;
+      color: #000;
+      padding: 4px 8px;
+      background: #d9d9d9;
+      border-radius: 5px;
+    }
+    
+    .product-description {
+      font-size: 12px;
+      font-weight: 300;
+      color: #000;
+      background: #d9d9d9;
+      padding: 4px 8px;
+      border-radius: 5px;
+    }
+    
+    .product-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      align-items: center;
+    }
+    
+    .product-quantity {
+      background: #00123d;
+      padding: 4px 12px;
+      border-radius: 5px;
+      font-size: 20px;
+      font-weight: bold;
+      color: #3bd4ff;
+      text-align: center;
+      min-width: 60px;
+    }
+    
+    .delete-btn {
+      background: linear-gradient(68.2deg, #124a83 20.2%, #3698cf 85.31%);
+      box-shadow: 2px 2px 4px rgba(0,0,0,0.25);
+      border: none;
+      border-radius: 6px;
+      padding: 6px 12px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: transform 0.2s;
+    }
+    
+    .delete-btn:hover {
+      transform: scale(1.05);
+    }
+    
+    .delete-btn svg {
+      width: 18px;
+      height: 18px;
+    }
+    /* scroll */
+    .product-list-container {
+      overflow-y: scroll;
+      scrollbar-width: none; /* Firefox */
+    }
+
+    .product-list-container::-webkit-scrollbar {
+      display: none; /* Chrome, Safari, Edge */
+    }
+
+    /* Quantity Controls */
+    .quantity-controls {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .quantity-btn {
+      background: linear-gradient(68.2deg, #124a83 20.2%, #3698cf 85.31%);
+      border: none;
+      border-radius: 4px;
+      width: 24px;
+      height: 24px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: transform 0.2s;
+      box-shadow: 1px 1px 2px rgba(0,0,0,0.25);
+    }
+
+    .quantity-btn:hover {
+      transform: scale(1.1);
+    }
+
+    .quantity-btn svg {
+      width: 14px;
+      height: 14px;
+    }
+    /* Hover effect cho user bar */
+    .user-bar-container:hover .user-icon {
+      transform: scale(1.08);
+      box-shadow: 0 0 16px rgba(0,212,232,0.8), 0 3px 6px rgba(0,0,0,0.4) !important;
+    }
+
+    .user-bar-container:hover .online-indicator {
+      animation: pulse 1.5s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.6; transform: scale(1.1); }
+    }
+  </style>
+</head>
+<body>
+  <div class="w-[720px] h-[1280px] relative overflow-hidden bg-white">
+    <!-- MAIN CONTAINER -->
+    <div class="w-[720px] h-[1280px] absolute left-0 top-0 overflow-hidden bg-white">
+      <!-- BACKGROUND SECTION -->
+      <div class="w-[720px] h-[1280px] absolute left-0 top-0">
+        <div class="w-[720px] h-[1280px] absolute left-0 top-0 overflow-hidden bg-[#0c2a62]">
+          <!-- Background Image -->
+          <img src="rm378-05-1.png" class="w-[720px] h-[1280px] absolute left-[-1px] top-[-1px] object-none" />
+          
+          <!-- Top Decorative Elements -->
+          <svg width="278" height="18" viewBox="0 0 278 18" fill="none" xmlns="http://www.w3.org/2000/svg"
+            class="w-[277.11px] h-[17.27px]" preserveAspectRatio="none">
+            <g clip-path="url(#clip0_4050_58)">
+              <path d="M8.69063 11.1384H0L0 14.2007L0 17.2631H8.69063V11.1384Z" fill="url(#paint0_linear_4050_58)"></path>
+            </g>
+            <defs>
+              <linearGradient id="paint0_linear_4050_58" x1="0" y1="14.2124" x2="8.69063" y2="14.2124" gradientUnits="userSpaceOnUse">
+                <stop stop-color="#009EDB"></stop>
+                <stop offset="1" stop-color="#00F6FA" stop-opacity="0.1"></stop>
+              </linearGradient>
+              <clipPath id="clip0_4050_58">
+                <rect width="8.69062" height="6.12466" fill="white" transform="translate(0 11.1501)"></rect>
+              </clipPath>
+            </defs>
+          </svg>
+          
+          <!-- Status Bar Elements -->
+          <div class="w-[23.45px] h-[13.93px]">
+            <div class="w-[8.95px] h-[13.93px] absolute left-[88.5px] top-[17.5px] bg-[#009edb]"></div>
+            <div class="w-[8.95px] h-[13.93px] absolute left-[103px] top-[17.5px] bg-[#009edb]"></div>
+          </div>
+          
+          
+          <!-- Time Display -->
+          <p class="absolute left-10 top-[1259px] text-xs font-bold text-left text-white/80">3:14 04/16/24</p>
+          
+          <!-- Corner Decorations -->
+          <svg width="9" height="11" viewBox="0 0 9 11" fill="none" xmlns="http://www.w3.org/2000/svg"
+            class="absolute left-[687px] top-[42px]" preserveAspectRatio="none">
+            <path d="M3.42504 11H0L5.57496 0H9L3.42504 11Z" fill="url(#paint0_corner)"></path>
+            <defs>
+              <linearGradient id="paint0_corner" x1="6.0939" y1="0.271377" x2="9.63809" y2="11.2708" gradientUnits="userSpaceOnUse">
+                <stop stop-color="#009EDB"></stop>
+                <stop offset="1" stop-color="#00F6FA" stop-opacity="0.1"></stop>
+              </linearGradient>
+            </defs>
+          </svg>
+        </div>
+        
+        <!-- Main Content Frame -->
+        <svg width="701" height="1253" viewBox="0 0 701 1253" fill="none" xmlns="http://www.w3.org/2000/svg"
+          class="w-[691px] h-[1242.5px]" preserveAspectRatio="none">
+          <g filter="url(#filter0_f_4050_82)">
+            <path d="M78.364 5H5.00024L5.33141 1223.78L132.5 1223L150.088 1242.18L696 1242L694 58.8332L510.5 59.5L481 11.0076H298.016"
+              stroke="#009EDB" stroke-width="2" stroke-miterlimit="2.61313"></path>
+            <path d="M142.5 1247.5L128.5 1231H5.00024" stroke="#009EDB" stroke-width="2"></path>
+          </g>
+          <defs>
+            <filter id="filter0_f_4050_82" x="0" y="0" width="701.002" height="1252.15" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+              <feFlood flood-opacity="0" result="BackgroundImageFix"></feFlood>
+              <feBlend mode="normal" in="SourceGraphic" in2="BackgroundImageFix" result="shape"></feBlend>
+              <feGaussianBlur stdDeviation="2" result="effect1_foregroundBlur_4050_82"></feGaussianBlur>
+            </filter>
+          </defs>
+        </svg>
+      </div>
+
+      <!-- PRODUCT DETAILS SECTION -->
+      <div class="w-[669.5px] h-[561.49px]">
+        <div class="w-[643.92px] h-[455px]">
+
+<!-- <svg width="680" height="700" viewBox="0 0 680 550" fill="none" xmlns="http://www.w3.org/2000/svg"
+  class="absolute pointer-events-none" 
+  style="left: 20px; top: 621px;" 
+  preserveAspectRatio="none">
+  <g filter="url(#filter_product_detail_bg)">
+    <path d="M 20 40 L 530 40 L 565 55 L 580 70 L 580 495 L 560 510 L 65 510 L 20 475 Z"
+      fill="#0d2438"></path>
+  </g>
+  <defs>
+    <filter id="filter_product_detail_bg" x="-5" y="-5" width="690" height="560" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feFlood flood-opacity="0" result="BackgroundImageFix"></feFlood>
+      <feBlend mode="normal" in="SourceGraphic" in2="BackgroundImageFix" result="shape"></feBlend>
+      <feGaussianBlur stdDeviation="8" result="effect1_foregroundBlur"></feGaussianBlur>
+    </filter>
+  </defs>
+</svg> -->
+          <!-- Product Background Card -->
+          <div class="w-[643.92px] h-[455px] absolute left-[38.5px] top-[734.5px] bg-[#8dabd1]/20"
+            style="box-shadow: 0px 1px 2px 0 rgba(200, 198, 198, 0.25);"></div>
+          
+          <!-- Product Card -->
+          <div class="w-[595px] h-[245px]">
+            <div class="w-[595px] h-[245px] absolute left-[62.5px] top-[755.5px] rounded-[10px]"
+              style="background: linear-gradient(to right, #022142 16.82%, #051225 70.67%);"></div>
+            
+            <!-- Product Image -->
+            <img src="vn-11134207-7r98o-lvoisfh1c0red5-1.png" class="w-[67px] h-[67px] absolute left-[77.5px] top-[878.5px] object-cover" />
+            
+            <!-- Product Info -->
+            <p class="w-[97px] h-[17px] absolute left-[78px] top-[810.09px] text-sm font-medium text-left text-white">Tên Hàng</p>
+            <p class="w-[188px] h-[22px] absolute left-[164px] top-[811px] text-sm font-bold text-left text-black bg-white rounded px-2 py-0.5">Găng tay</p>
+            
+            <p class="w-[97px] h-[17px] absolute left-[78px] top-[846px] text-sm font-medium text-left text-white">Mã Hàng</p>
+            <p class="w-[183px] h-[22px] absolute left-[161px] top-[848px] text-sm text-left text-black bg-white rounded px-2 py-0.5">JGW87914</p>
+            
+            <p class="w-[97px] h-[17px] absolute left-[156px] top-[879px] text-sm font-medium text-left text-white">Mô tả</p>
+            <p class="w-[345px] h-[35px] absolute left-[159px] top-[907px] text-xs font-light text-left text-black bg-white rounded px-2 py-0.5">Găng vải có lớp cao su chống trượt chống cắt</p>
+            
+            <!-- Top Header Bar -->
+            <div class="w-[595px] h-[38.4px] absolute left-[62.5px] top-[755.5px] rounded-tl-[10px] rounded-tr-[10px]"
+              style="background: linear-gradient(to right, rgba(116,213,255,0.91) 17.6%, rgba(0,153,255,0.91) 47.47%);"></div>
+            
+            <!-- Labels -->
+            <p class="w-[294.21px] h-[19.69px] absolute left-[78.37px] top-[769.09px] text-sm font-bold text-left text-black">CASE: 1</p>
+            <p class="absolute left-[452px] top-[773.09px] text-[10px] font-bold text-center text-white">Thời Gian Nhập Hàng :</p>
+            <p class="absolute left-[559px] top-[773.09px] text-[10px] text-center text-white">15:35 - 17/11/2025</p>
+            
+            <!-- Quantity -->
+            <p class="w-[72.45px] h-[17.72px] absolute left-[531px] top-[810.09px] text-[15px] font-medium text-center text-white">Số lượng</p>
+            <p class="w-[70.26px] h-[17.72px] absolute left-[531.94px] top-[841px] text-xl font-bold text-center text-[#3bd4ff]">10</p>
+            
+            <!-- Action Buttons -->
+            <div class="flex justify-center items-center w-[138px] h-[34px] absolute left-[78px] top-[957px] overflow-hidden gap-2.5 pl-4 pr-6 py-[11px] rounded-md"
+              style="background: linear-gradient(68.2deg, #124a83 20.2%, #3698cf 85.31%); box-shadow: 2px 2px 4px 0 rgba(0,0,0,0.25);">
+              <svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg" class="flex-grow-0 flex-shrink-0 w-[18px] h-[18px] relative" preserveAspectRatio="none">
+                <path d="M15 4.5H9L7.5 3H3C2.175 3 1.5075 3.675 1.5075 4.5L1.5 13.5C1.5 14.325 2.175 15 3 15H15C15.825 15 16.5 14.325 16.5 13.5V6C16.5 5.175 15.825 4.5 15 4.5ZM15 13.5H3V6H15V13.5ZM6 9.7575L7.0575 10.815L8.25 9.63V12.75H9.75V9.63L10.9425 10.8225L12 9.7575L9.0075 6.75L6 9.7575Z" fill="#F0F0F0"></path>
+              </svg>
+              <p class="flex-grow-0 flex-shrink-0 text-[15px] text-center text-white">Chọn Ảnh</p>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Section Header -->
+        <p class="w-[236px] h-4 absolute left-[34px] top-[705px] text-base font-bold text-left text-white">Chi Tiết Hàng Hóa</p>
+        
+        <!-- Action Button -->
+        <div class="flex justify-center items-center w-[138px] h-[34px] absolute left-[503px] top-[957px] overflow-hidden gap-2.5 pl-4 pr-6 py-[11px] rounded-md"
+          style="background: linear-gradient(68.2deg, #124a83 20.2%, #3698cf 85.31%); box-shadow: 2px 2px 4px 0 rgba(0,0,0,0.25);">
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg" class="flex-grow-0 flex-shrink-0 w-[18px] h-[18px] relative" preserveAspectRatio="none">
+            <path d="M6.75 12H11.25V7.5H14.25L9 2.25L3.75 7.5H6.75V12ZM3.75 13.5H14.25V15H3.75V13.5Z" fill="#F0F0F0"></path>
+          </svg>
+          <p class="flex-grow-0 flex-shrink-0 text-[15px] text-center text-white">Nhập Vật Tư</p>
+        </div>
+        
+        <!-- Back Button -->
+        <div class="flex justify-start items-center w-[130px] h-[34px] absolute left-[549px] top-[1209px] overflow-hidden gap-[5px] pl-[22px] pr-6 py-[11px] rounded-md bg-white border-[0.5px] border-black/40">
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg" class="flex-grow-0 flex-shrink-0 w-[18px] h-[18px] relative" preserveAspectRatio="none">
+            <path d="M8.7525 2.9025L7.425 1.575L0 9L7.425 16.425L8.7525 15.0975L2.655 9L8.7525 2.9025Z" fill="black" fill-opacity="0.4"></path>
+          </svg>
+          <p class="flex-grow-0 flex-shrink-0 text-[15px] text-center text-black">Trở Lại</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- HEADER SECTION -->
+    <p class="w-[178px] h-7 absolute left-[120px] top-3 text-[25px] font-bold text-left text-[#00d1ff]/[0.85]">Smart Locker</p>
+    <img src="logo-vule.png" class="w-[132px] h-[25px] absolute left-[525px] top-[35px] object-cover" />
+    
+    <!-- TOP NAVIGATION BAR -->
+    <div class="w-[454.5px] h-[38px]">
+      <!-- Background Frame with gradient border -->
+      <div class="absolute left-[50.5px] top-[63.5px] w-[278.94px] h-[38px] rounded-lg overflow-hidden z-10"
+        style="background: linear-gradient(135deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0.25) 100%); 
+              box-shadow: -2px 2px 4px rgba(0,0,0,0.15), inset 0 1px 2px rgba(255,255,255,0.3);
+              border: 1px solid rgba(255,255,255,0.2);">
+      </div>
+      
+      <!-- User Icon -->
+      <div class="absolute left-[285px] top-[65.5px] w-[36px] h-[33px] rounded-md flex items-center justify-center z-20"
+        style="background: linear-gradient(135deg, #00d4e8 0%, #00b8cc 100%);
+              box-shadow: 0 0 12px rgba(0,212,232,0.6), 0 2px 4px rgba(0,0,0,0.3);
+              border: 1px solid rgba(255,255,255,0.4);
+              transition: all 0.3s ease;">
+        <svg width="20" height="20" viewBox="0 0 26 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M12.8459 12C16.9004 12 20.1864 9.31406 20.1864 6C20.1864 2.68594 16.9004 0 12.8459 0C8.79141 0 5.50538 2.68594 5.50538 6C5.50538 9.31406 8.79141 12 12.8459 12ZM17.9843 13.5H17.0265C15.7534 13.9781 14.3369 14.25 12.8459 14.25C11.3549 14.25 9.9441 13.9781 8.66524 13.5H7.70754C3.45233 13.5 0 16.3219 0 19.8V21.75C0 22.9922 1.23298 24 2.75269 24H22.9391C24.4588 24 25.6918 22.9922 25.6918 21.75V19.8C25.6918 16.3219 22.2395 13.5 17.9843 13.5Z" fill="white"></path>
+        </svg>
+        <!-- Online status indicator -->
+        <div class="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-[#48ffc8] rounded-full border-2 border-[#0c2a62]"
+          style="box-shadow: 0 0 6px rgba(72,255,200,0.8);"></div>
+        </div>
+      
+      <!-- Username Frame SVG -->
+      <svg width="122" height="33" viewBox="0 0 122 33" fill="none" xmlns="http://www.w3.org/2000/svg"
+        class="absolute left-[335.56px] top-[67.5px]" preserveAspectRatio="none">
+        <path d="M121.118 32.3268H0L1.9703e-05 0H99.7086L121.118 32.3268Z" fill="url(#paint0_linear_4050_131)"></path>
+        <defs>
+          <linearGradient id="paint0_linear_4050_131" x1="99.7863" y1="4.64091" x2="104.501" y2="40.4443" gradientUnits="userSpaceOnUse">
+            <stop stop-color="#009EDB"></stop>
+            <stop offset="1" stop-color="#00F6FA" stop-opacity="0.1"></stop>
+          </linearGradient>
+        </defs>
+      </svg>
+      
+      <!-- Username Frame Overlay -->
+      <svg width="122" height="33" viewBox="0 0 122 33" fill="none" xmlns="http://www.w3.org/2000/svg"
+        class="absolute left-[335.56px] top-[67.5px]" preserveAspectRatio="none">
+        <path d="M121.118 32.3268H0L1.9703e-05 0H99.7086L121.118 32.3268Z" fill="url(#paint0_linear_4050_132)"></path>
+        <defs>
+          <linearGradient id="paint0_linear_4050_132" x1="99.7863" y1="4.64091" x2="104.501" y2="40.4443" gradientUnits="userSpaceOnUse">
+            <stop stop-color="#009EDB"></stop>
+            <stop offset="1" stop-color="#00F6FA" stop-opacity="0.1"></stop>
+          </linearGradient>
+        </defs>
+      </svg>
+      
+      <!-- Username Frame Decoration -->
+      <svg width="63" height="33" viewBox="0 0 63 33" fill="none" xmlns="http://www.w3.org/2000/svg"
+        class="absolute left-[442.61px] top-[67.5px]" preserveAspectRatio="none">
+        <path d="M37.9257 32.3268H22.0216L0 0H16.5159L37.9257 32.3268Z" fill="url(#paint0_linear_4050_133)" fill-opacity="0.5"></path>
+        <path d="M62.3942 32.3268H46.4901L24.4685 0H40.9844L62.3942 32.3268Z" fill="url(#paint1_linear_4050_133)" fill-opacity="0.3"></path>
+        <defs>
+          <linearGradient id="paint0_linear_4050_133" x1="24.5459" y1="4.64091" x2="29.2608" y2="40.4443" gradientUnits="userSpaceOnUse">
+            <stop stop-color="#009EDB"></stop>
+            <stop offset="1" stop-color="#00F6FA" stop-opacity="0.1"></stop>
+          </linearGradient>
+          <linearGradient id="paint1_linear_4050_133" x1="24.5459" y1="4.64091" x2="29.2608" y2="40.4443" gradientUnits="userSpaceOnUse">
+            <stop stop-color="#009EDB"></stop>
+            <stop offset="1" stop-color="#00F6FA" stop-opacity="0.1"></stop>
+          </linearGradient>
+        </defs>
+      </svg>
+      
+      <!-- Username Text -->
+       <p class="absolute left-[349.51px] top-[71.83px] text-xs font-bold text-white" style="text-shadow: 0 0 8px rgba(109,245,255,0.8), 0 1px 2px rgba(0,0,0,0.5);">Admin</p>
+      
+      <!-- Timestamp -->
+      <p class="absolute left-[348.29px] top-[86.83px] text-[8px] font-light text-white/80" style="text-shadow: 0 1px 2px rgba(0,0,0,0.4);">08:35 - 15/12/2025</p>
+    </div>
+
+    <!-- PRODUCT LIST SECTION -->
+    <div class="w-[622px] h-[554px] relative">
+      <!-- Frame Background with SVG -->
+      <svg width="720" height="650" viewBox="0 0 720 655" fill="none" xmlns="http://www.w3.org/2000/svg"
+        class="absolute left-[10px] top-[45px] pointer-events-none" preserveAspectRatio="none">
+        <g filter="url(#filter0_f_4050_139)">
+          <path d="M467.091 50.4912L512 98.9912L639.5 101.491L669.5 128.491L671 575.491L639.178 604.491H102.369L49 556.491L51 50.4912H467.091Z"
+            fill="#35FFBF" fill-opacity="0.7"></path>
+        </g>
+        <defs>
+          <filter id="filter0_f_4050_139" x="-1.35657" y="0" width="722.612" height="654.87" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+            <feFlood flood-opacity="0" result="BackgroundImageFix"></feFlood>
+            <feBlend mode="normal" in="SourceGraphic" in2="BackgroundImageFix" result="shape"></feBlend>
+            <feGaussianBlur stdDeviation="25" result="effect1_foregroundBlur_4050_139"></feGaussianBlur>
+          </filter>
+        </defs>
+      </svg>
+
+      <!-- Frame Border Outline -->
+      <svg width="595" height="529" viewBox="0 0 595 529" fill="none" xmlns="http://www.w3.org/2000/svg"
+        class="absolute left-[62.5px] top-[109px] pointer-events-none" preserveAspectRatio="none">
+        <g filter="url(#filter0_i_4050_140)">
+          <path d="M1 483.478L0 0L399.228 1.5L441.5 50.5L569.5 52L594 74L595 501.013L564.441 528.5H53.0466L1 483.478Z"
+            fill="#DBDBDB"></path>
+        </g>
+        <defs>
+          <filter id="filter0_i_4050_140" x="-2" y="-3" width="597" height="531.5" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+            <feFlood flood-opacity="0" result="BackgroundImageFix"></feFlood>
+            <feBlend mode="normal" in="SourceGraphic" in2="BackgroundImageFix" result="shape"></feBlend>
+            <feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"></feColorMatrix>
+            <feOffset dx="-2" dy="-3"></feOffset>
+            <feGaussianBlur stdDeviation="10.2"></feGaussianBlur>
+            <feComposite in2="hardAlpha" operator="arithmetic" k2="-1" k3="1"></feComposite>
+            <feColorMatrix type="matrix" values="0 0 0 0 0.21875 0 0 0 0 0.21875 0 0 0 0 0.21875 0 0 0 1 0"></feColorMatrix>
+            <feBlend mode="normal" in2="shape" result="effect1_innerShadow_4050_140"></feBlend>
+          </filter>
+        </defs>
+      </svg>
+
+      <!-- Section Header -->
+      <p class="w-[83px] h-[23px] absolute left-[98px] top-[191px] text-[15px] font-medium text-left text-black z-10">Dụng cụ</p>
+      <p class="w-[66px] h-[17.72px] absolute left-[541px] top-[192px] text-[15px] font-medium text-left text-black z-10">Số lượng</p>
+      
+      <!-- Title -->
+      <p class="w-[313.35px] absolute left-[79px] top-[116px] text-[40px] font-bold text-left text-black z-10">CASE 1</p>
+      <p class="w-[103px] h-11 absolute left-[508px] top-[111px] text-[40px] font-bold text-left text-[#3bd4ff] z-10">8</p>
+      
+      <!-- Add Button -->
+      <div class="flex justify-center items-center w-[165px] h-[34px] absolute left-[452px] top-[590px] overflow-hidden gap-2.5 pl-4 pr-6 py-[11px] rounded-md z-10"
+        style="background: linear-gradient(68.2deg, #124a83 20.2%, #3698cf 85.31%); box-shadow: 2px 2px 4px 0 rgba(0,0,0,0.25);" onclick="addProductItem()">
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg" class="flex-grow-0 flex-shrink-0 w-[18px] h-[18px] relative" preserveAspectRatio="none">
+          <path d="M17 10.1429H10.1429V17H7.85714V10.1429H1V7.85714H7.85714V1H10.1429V7.85714H17V10.1429Z" fill="#F0F0F0"></path>
+        </svg>
+        <p class="flex-grow-0 flex-shrink-0 text-[15px] text-center text-white">Thêm Dụng Cụ</p>
+      </div>
+
+      <!-- Product List Container with Scroll -->
+      <div id="productListContainer" class="product-list-container w-[542px] h-[360px] absolute left-[77.5px] top-[215.5px] overflow-y-auto"
+        style="padding-right: 10px;">
+        <!-- Products will be inserted here dynamically -->
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Product data
+    const productsData = [
+      {
+        id: 1,
+        name: 'Găng tay',
+        description: 'Găng vải có lớp cao su chống trượt chống cắt',
+        code: 'JGW87914',
+        image: 'vn-11134207-7r98o-lvoisfh1c0red5-1.png',
+        quantity: 10
+      },
+      {
+        id: 2,
+        name: 'Áo phản quang',
+        description: 'Áo phản quang dạng lưới màu cam',
+        code: 'JGW87915',
+        image: 'vn-11134207-7r98o-lvoisfh1c0red5-1-2.jpeg',
+        quantity: 49
+      },
+      {
+        id: 3,
+        name: 'Nút tai',
+        description: 'Nút tai chống ồn có dây',
+        code: 'JGW87916',
+        image: 'vn-11134207-7r98o-lvoisfh1c0red5-1-3.jpeg',
+        quantity: 99
+      },
+      {
+        id: 4,
+        name: 'Nón vải',
+        description: 'Nón vải dùng cho phòng sạch',
+        code: 'JGW87917',
+        image: 'vn-11134207-7r98o-lvoisfh1c0red5-1-4.jpeg',
+        quantity: 30
+      }
+    ];
+
+    // Create product item HTML
+    function createProductItem(product, index) {
+      return `
+        <div class="product-item" data-id="${product.id}">
+          <div class="product-card">
+            <!-- Product Image -->
+            <img src="${product.image}" class="product-image" alt="${product.name}" />
+            
+            <!-- Product Info -->
+            <div class="product-info">
+              <div class="product-row">
+                <span class="product-name">${product.name}</span>
+                <span class="product-code">${product.code}</span>
+              </div>
+              <div class="product-description">${product.description}</div>
+            </div>         
+            <!-- Actions -->
+            <div class="product-actions">
+              <div class="quantity-controls">
+                <button class="quantity-btn" onclick="decreaseQuantity(${product.id})" title="Giảm">
+                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M13 8H1V6H13V8Z" fill="#F0F0F0"></path>
+                  </svg>
+                </button>
+                <div class="product-quantity">${product.quantity}</div>
+                <button class="quantity-btn" onclick="increaseQuantity(${product.id})" title="Tăng">
+                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M13 8H8V13H6V8H1V6H6V1H8V6H13V8Z" fill="#F0F0F0"></path>
+                  </svg>
+                </button>
+              </div>
+              <button class="delete-btn" onclick="removeProductItem(${product.id})" title="Xóa sản phẩm">
+                <svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M4.5 14.25C4.5 15.075 5.175 15.75 6 15.75H12C12.825 15.75 13.5 15.075 13.5 14.25V5.25H4.5V14.25ZM14.25 3H11.625L10.875 2.25H7.125L6.375 3H3.75V4.5H14.25V3Z" fill="#F0F0F0"></path>
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    // Render product list
+    function renderProductList() {
+      const container = document.getElementById('productListContainer');
+      container.innerHTML = productsData.map((product, index) => createProductItem(product, index)).join('');
+    }
+    // Increase quantity
+      function increaseQuantity(id) {
+        const product = productsData.find(p => p.id === id);
+        if (product) {
+          product.quantity++;
+          renderProductList();
+        }
+      }
+
+      // Decrease quantity
+      function decreaseQuantity(id) {
+        const product = productsData.find(p => p.id === id);
+        if (product && product.quantity > 0) {
+          product.quantity--;
+          renderProductList();
+        }
+      }
+
+    // Add new product item
+    function addProductItem() {
+      const newProduct = {
+        id: Math.max(...productsData.map(p => p.id), 0) + 1,
+        name: `Sản phẩm ${productsData.length + 1}`,
+        description: 'Mô tả sản phẩm mới',
+        code: `JGW${String(90000 + productsData.length).slice(-5)}`,
+        image: 'vn-11134207-7r98o-lvoisfh1c0red5-1.png',
+        quantity: 0
+      };
+      
+      productsData.push(newProduct);
+      renderProductList();
+      
+      // Scroll to bottom
+      const container = document.getElementById('productListContainer');
+      setTimeout(() => {
+        container.scrollTop = container.scrollHeight;
+      }, 0);
+    }
+
+    // Remove product item
+    function removeProductItem(id) {
+      const index = productsData.findIndex(p => p.id === id);
+      if (index > -1) {
+        productsData.splice(index, 1);
+        renderProductList();
+      }
+    }
+
+    // Initialize
+    renderProductList();
+  </script>
+</body>
+</html>
