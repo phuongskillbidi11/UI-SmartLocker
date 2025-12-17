@@ -105,6 +105,16 @@ class LoginForm {
     `;
   }
 
+  generateKeyboardToggle() {
+    return `
+      <div class="keyboard-toggle">
+        <button type="button" onclick="toggleVirtualKeyboard(document.activeElement || document.getElementById('username-input'))">
+          <span>Mở bàn phím</span>
+        </button>
+      </div>
+    `;
+  }
+
   generateLoginButton() {
     return `
       <div id="login-button-container">
@@ -126,6 +136,7 @@ class LoginForm {
         ${this.generateUsernameInput()}
         ${this.generatePasswordInput()}
         ${this.generateForgotPassword()}
+        ${this.generateKeyboardToggle()}
         ${this.generateLoginButton()}
       `;
     }
@@ -176,7 +187,9 @@ async function handleLogin() {
 
     try { localStorage.setItem('smartlocker_login_time', new Date().toISOString()); } catch (e) {}
 
-    window.location.href = 'Page1.html';
+    window.dispatchEvent(new CustomEvent('smartlocker-login-success', {
+      detail: { user, token }
+    }));
   } catch (err) {
     console.error('Login failed', err);
     alert('Đăng nhập thất bại: ' + (err.message || 'Không thể kết nối máy chủ'));
@@ -190,8 +203,8 @@ async function handleLogin() {
 function initLoginForm() {
   const loginForm = new LoginForm({
     containerId: 'login-form',
-    username: 'phuong',
-    password: 'phuong@123'
+    username: '',
+    password: ''
   });
   loginForm.render();
   

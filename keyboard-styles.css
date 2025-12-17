@@ -99,6 +99,7 @@
 
 #keyboard {
   animation: slideUp 0.3s ease-out;
+  z-index: 3000;
 }
 
 #keyboard.hidden {

@@ -25,7 +25,7 @@ class LockerItem {
     
     // ===== SVG MỚI =====
     return `
-      <svg width="125" height="108" viewBox="0 0 125 108" fill="none" xmlns="http://www.w3.org/2000/svg" class="absolute left-11 top-0" preserveAspectRatio="none">
+      <svg width="125" height="108" viewBox="0 0 125 108" fill="none" xmlns="http://www.w3.org/2000/svg" class="absolute left-0 top-0" preserveAspectRatio="none">
         <g filter="url(#filter0_if_${this.partNumber})">
           <path d="M81.8979 4.49121L94.3274 16.9602H113.928L119.665 21.3619V98.0136L113.928 102.781H14.0134L6.36439 95.5487L4.45215 4.49121H81.8979Z" 
                 fill="${fillColor}" fill-opacity="0.5"/>
@@ -88,10 +88,10 @@ class LockerItem {
           data-part="${this.partNumber}"
           onclick="showProductList(${this.partNumber})">
         ${this.generateFrameSVG()}
-        <p class="absolute left-[55px] top-[6px] text-[10px] font-bold pointer-events-none" 
+        <p class="absolute left-[15px] top-[6px] text-[10px] font-bold pointer-events-none" 
           style="color: #000; font-weight: 900; text-shadow: 0 0 10px rgba(255, 255, 255, 1), 0 0 5px rgba(255, 255, 255, 0.8);">CASE ${this.partNumber}</p>
-        <p class="absolute left-[135px] top-[5px] text-[10px] font-bold text-[#3bd4ff] pointer-events-none">${this.points}</p>
-         <p class="absolute left-[110px] top-1/2 transform -translate-x-1/2 -translate-y-1/2 text-[48px] font-bold pointer-events-none" 
+        <p class="absolute left-[95px] top-[5px] text-[10px] font-bold text-[#3bd4ff] pointer-events-none">${this.points}</p>
+         <p class="absolute left-[60px] top-1/2 transform -translate-x-1/2 -translate-y-1/2 text-[48px] font-bold pointer-events-none" 
          style="color: rgba(0, 0, 0, 0.15);">${this.partNumber}</p>
       </div>
 
@@ -138,35 +138,35 @@ class LockerGrid {
   buildLayout() {
     return [
       // Row 1
-      { partNumber: 1, left: '0px', top: '65px' },
-      { partNumber: 2, left: '130px', top: '65px' },
-      { partNumber: 3, left: '260px', top: '65px' },
-      { partNumber: 4, left: '390px', top: '65px' },
-      { partNumber: 5, left: '520px', top: '65px' },
+      { partNumber: 1, left: '0px', top: '0px' },
+      { partNumber: 2, left: '130px', top: '0px' },
+      { partNumber: 3, left: '260px', top: '0px' },
+      { partNumber: 4, left: '390px', top: '0px' },
+      { partNumber: 5, left: '520px', top: '0px' },
       // Row 2
-      { partNumber: 6, left: '0px', top: '178px' },
-      { partNumber: 7, left: '130px', top: '178px' },
-      { partNumber: 8, left: '260px', top: '178px' },
-      { partNumber: 9, left: '390px', top: '178px' },
+      { partNumber: 6, left: '0px', top: '118px' },
+      { partNumber: 7, left: '130px', top: '118px' },
+      { partNumber: 8, left: '260px', top: '118px' },
+      { partNumber: 9, left: '390px', top: '118px' },
       
       // Row 3
-      { partNumber: 10, left: '0px', top: '296px' },
-      { partNumber: 12, left: '130px', top: '296px' },
-      { partNumber: 13, left: '260px', top: '296px' },
-      { partNumber: 14, left: '390px', top: '296px' },
+      { partNumber: 10, left: '0px', top: '236px' },
+      { partNumber: 12, left: '130px', top: '236px' },
+      { partNumber: 13, left: '260px', top: '236px' },
+      { partNumber: 14, left: '390px', top: '236px' },
 
       // Row 4
-      { partNumber: 16, left: '0px', top: '416px' },
-      { partNumber: 17, left: '130px', top: '416px' },
-      { partNumber: 18, left: '260px', top: '416px' },
-      { partNumber: 19, left: '390px', top: '416px' },
-      { partNumber: 20, left: '520px', top: '416px' },
+      { partNumber: 16, left: '0px', top: '356px' },
+      { partNumber: 17, left: '130px', top: '356px' },
+      { partNumber: 18, left: '260px', top: '356px' },
+      { partNumber: 19, left: '390px', top: '356px' },
+      { partNumber: 20, left: '520px', top: '356px' },
       //Row5
-      { partNumber: 21, left: '0px', top: '536px' },
-      { partNumber: 22, left: '130px', top: '536px' },
-      { partNumber: 23, left: '260px', top: '536px' },
-      { partNumber: 24, left: '390px', top: '536px' },
-      { partNumber: 25, left: '520px', top: '536px' },
+      { partNumber: 21, left: '0px', top: '476px' },
+      { partNumber: 22, left: '130px', top: '476px' },
+      { partNumber: 23, left: '260px', top: '476px' },
+      { partNumber: 24, left: '390px', top: '476px' },
+      { partNumber: 25, left: '520px', top: '476px' },
     ];
   }
 
@@ -211,7 +211,7 @@ class LockerGrid {
   }
   renderScreen(){
     return `
-    <div id="screen-display" style="position: absolute; left: 567px; top: 176px; width: 125px; height: 228px; z-index: 100;">
+    <div id="screen-display" style="position: absolute; left: 523px; top: 118px; width: 125px; height: 228px; z-index: 100;">
       <svg width="109" height="213" viewBox="0 0 109 213" fill="none" xmlns="http://www.w3.org/2000/svg" style="width: 100%; height: 100%;">
         <path d="M0 10C0 4.47716 4.47715 0 10 0H99C104.523 0 109 4.47715 109 10V203C109 208.523 104.523 213 99 213H10C4.47715 213 0 208.523 0 203V10Z" fill="#E8E2E2"/>
         <path d="M3.60327 18.8138C3.60327 13.291 8.08042 8.81384 13.6033 8.81384H95.3967C100.92 8.81384 105.397 13.291 105.397 18.8138V134.693C105.397 140.216 100.92 144.693 95.3967 144.693H13.6033C8.08041 144.693 3.60327 140.216 3.60327 134.693V18.8138Z" fill="black"/>

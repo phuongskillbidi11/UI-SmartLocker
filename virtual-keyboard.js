@@ -1,11 +1,34 @@
 // Virtual Keyboard Implementation for Smart Locker
 let keyboard = null;
 let activeInputElement = null;
+let currentLayoutName = 'default';
 
-// Initialize virtual keyboard
+function isEditableInput(element) {
+  return Boolean(
+    element &&
+      (element.tagName === 'INPUT' || element.tagName === 'TEXTAREA') &&
+      typeof element.setSelectionRange === 'function'
+  );
+}
+
+function resolveKeyboardInput(candidate) {
+  if (isEditableInput(candidate)) return candidate;
+  if (isEditableInput(document.activeElement)) return document.activeElement;
+  return document.getElementById('username-input');
+}
+
+function focusAndMoveCaretToEnd(element) {
+  if (!element) return;
+  element.focus();
+  if (typeof element.setSelectionRange === 'function') {
+    const end = element.value.length;
+    element.setSelectionRange(end, end);
+  }
+}
+
 function initVirtualKeyboard() {
   const keyboardContainer = document.getElementById('keyboard');
-  
+
   if (!keyboardContainer || typeof window.SimpleKeyboard === 'undefined') {
     console.warn('Virtual keyboard not available');
     return;
@@ -13,93 +36,106 @@ function initVirtualKeyboard() {
 
   keyboard = new window.SimpleKeyboard.default({
     onKeyPress: onKeyPress,
-    theme: "hg-theme-default custom-keyboard",
+    theme: 'hg-theme-default custom-keyboard',
+    layoutName: currentLayoutName,
     layout: {
       default: [
-        "1 2 3 4 5 6 7 8 9 0",
-        "q w e r t y u i o p",
-        "a s d f g h j k l",
-        "shift z x c v b n m backspace",
-        ".com @ space"
+        '1 2 3 4 5 6 7 8 9 0',
+        'q w e r t y u i o p',
+        'a s d f g h j k l',
+        'shift z x c v b n m backspace',
+        '.com @ space'
       ],
       shift: [
-        "! @ # $ % ^ & * ( )",
-        "Q W E R T Y U I O P",
-        "A S D F G H J K L",
-        "shift Z X C V B N M backspace",
-        ".com @ space"
+        '! @ # $ % ^ & * ( )',
+        'Q W E R T Y U I O P',
+        'A S D F G H J K L',
+        'shift Z X C V B N M backspace',
+        '.com @ space'
       ]
     },
     display: {
-      'backspace': 'backspace',
-      'enter': 'enter',
-      'shift': 'shift',
-      'space': 'space'
+      backspace: 'backspace',
+      enter: 'enter',
+      shift: 'shift',
+      space: 'space'
     }
   });
 
-  // Set keyboard container
-  keyboard.setCaretPosition = false;
-  
-  // Store reference for later use
+  const hideButton = document.getElementById('keyboard-hide-btn');
+  if (hideButton) {
+    hideButton.addEventListener('click', hideVirtualKeyboard);
+  }
+
+  keyboardContainer.addEventListener('pointerdown', function (event) {
+    const target = event.target;
+    const keyButton = target && target.closest ? target.closest('.hg-button') : null;
+    if (!keyButton) return;
+    event.preventDefault();
+    if (activeInputElement) {
+      focusAndMoveCaretToEnd(activeInputElement);
+    }
+  });
+
   window.virtualKeyboard = keyboard;
 }
 
-// Handle key press
 function onKeyPress(button) {
   if (!activeInputElement) return;
 
-  if (button === 'backspace') {
-    const currentValue = activeInputElement.value;
-    activeInputElement.value = currentValue.slice(0, -1);
-  } else if (button === 'space') {
-    activeInputElement.value += ' ';
-  } else if (button === 'enter') {
-    activeInputElement.blur();
-    hideVirtualKeyboard();
-  } else if (button === 'shift') {
-    toggleShiftKeyboard();
-  } else {
-    activeInputElement.value += button;
+  switch (button) {
+    case 'backspace':
+      activeInputElement.value = activeInputElement.value.slice(0, -1);
+      break;
+    case 'space':
+      activeInputElement.value += ' ';
+      break;
+    case 'enter':
+      activeInputElement.blur();
+      hideVirtualKeyboard();
+      break;
+    case 'shift':
+      toggleShiftKeyboard();
+      break;
+    default:
+      activeInputElement.value += button;
   }
 
-  // Trigger input event to update UI
   activeInputElement.dispatchEvent(new Event('input', { bubbles: true }));
+  focusAndMoveCaretToEnd(activeInputElement);
 }
 
-// Toggle shift layout
 function toggleShiftKeyboard() {
-  if (keyboard) {
-    const isShift = keyboard.getName() === 'shift';
-    keyboard.setName(isShift ? 'default' : 'shift');
-  }
+  if (!keyboard) return;
+  currentLayoutName = currentLayoutName === 'shift' ? 'default' : 'shift';
+  keyboard.setOptions({ layoutName: currentLayoutName });
 }
 
-// Show virtual keyboard
 function showVirtualKeyboard(inputElement) {
-  activeInputElement = inputElement;
+  const resolvedInput = resolveKeyboardInput(inputElement);
+  if (!resolvedInput) return;
+  activeInputElement = resolvedInput;
   const keyboardContainer = document.getElementById('keyboard');
-  
+
   if (keyboardContainer) {
     keyboardContainer.classList.remove('hidden');
-    if (keyboard) {
-      keyboard.clearDisplay();
+    document.body.classList.add('keyboard-open');
+    if (keyboard && typeof keyboard.setInput === 'function') {
+      keyboard.setInput(activeInputElement.value || '');
     }
   }
-  
-  inputElement.focus();
+  focusAndMoveCaretToEnd(activeInputElement);
 }
 
-// Hide virtual keyboard
 function hideVirtualKeyboard() {
   const keyboardContainer = document.getElementById('keyboard');
   if (keyboardContainer) {
     keyboardContainer.classList.add('hidden');
+    document.body.classList.remove('keyboard-open');
   }
   activeInputElement = null;
 }
 
-// Toggle keyboard visibility
 function toggleVirtualKeyboard(inputElement) {
   const keyboardContainer = document.getElementById('keyboard');
   if (keyboardContainer && keyboardContainer.classList.contains('hidden')) {
@@ -109,55 +145,46 @@ function toggleVirtualKeyboard(inputElement) {
   }
 }
 
-// Attach keyboard to input elements
 function attachKeyboardToInputs() {
-  // Get all input elements that need virtual keyboard
   const inputs = document.querySelectorAll(
-    'input[type="text"], input[type="number"], input[type="search"], textarea'
+    'input[type="text"], input[type="number"], input[type="search"], input[type="password"], textarea'
   );
 
   inputs.forEach(input => {
     if (!input.dataset.keyboardAttached) {
-      // Show keyboard on focus
-      input.addEventListener('focus', function(e) {
+      input.addEventListener('focus', function () {
         showVirtualKeyboard(this);
       });
 
-      // Hide keyboard on blur after a small delay
-      input.addEventListener('blur', function(e) {
-        // Small delay to prevent issues with keyboard button clicks
+      input.addEventListener('blur', function () {
         setTimeout(() => {
-          if (document.activeElement !== this) {
-            hideVirtualKeyboard();
-          }
+          const keyboardContainer = document.getElementById('keyboard');
+          if (document.activeElement === this) return;
+          if (keyboardContainer && keyboardContainer.contains(document.activeElement)) return;
+          hideVirtualKeyboard();
         }, 100);
       });
 
-      // Mark as attached
       input.dataset.keyboardAttached = 'true';
     }
   });
 }
 
-// Initialize on DOM ready
-document.addEventListener('DOMContentLoaded', function() {
-  // Wait for SimpleKeyboard to load
-  if (typeof window.SimpleKeyboard !== 'undefined') {
-    initVirtualKeyboard();
-    attachKeyboardToInputs();
-  } else {
-    // Retry after a short delay
-    setTimeout(function() {
-      if (typeof window.SimpleKeyboard !== 'undefined') {
-        initVirtualKeyboard();
-        attachKeyboardToInputs();
-      }
-    }, 500);
+document.addEventListener('DOMContentLoaded', function () {
+  function initIfReady() {
+    if (typeof window.SimpleKeyboard !== 'undefined') {
+      initVirtualKeyboard();
+      attachKeyboardToInputs();
+    }
   }
 
-  // Reattach keyboard to dynamically created inputs
-  const observer = new MutationObserver(function(mutations) {
-    mutations.forEach(function(mutation) {
+  initIfReady();
+  if (typeof window.SimpleKeyboard === 'undefined') {
+    setTimeout(initIfReady, 500);
+  }
+
+  const observer = new MutationObserver(function (mutations) {
+    mutations.forEach(function (mutation) {
       if (mutation.addedNodes.length) {
         attachKeyboardToInputs();
       }
@@ -170,7 +197,6 @@ document.addEventListener('DOMContentLoaded', function() {
   });
 });
 
-// Export functions
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     showVirtualKeyboard,

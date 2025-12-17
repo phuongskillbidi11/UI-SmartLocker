@@ -7,62 +7,156 @@ class ControlPanel {
     this.historyData = [];
     this.historyLoading = false;
     this.historyError = null;
-// ============ AUTH CHECK & USER INFO ON PAGE LOAD ============
-// Inject clear button into search container on page load
-function renderUserInfo(name, time) {
-  const userNameElement = document.getElementById('userNameText');
-  const loginTimeElement = document.getElementById('loginTimeText');
-  
-  if (userNameElement) {
-    userNameElement.textContent = name || 'User';
+    // History filter options
+    this.filterOptions = { userCode: null, from: null, to: null, limit: 20 };
+    this.userList = [];
+    this.historyModalOpen = false;
   }
-  if (loginTimeElement) {
-    loginTimeElement.textContent = `Đăng nhập: ${time || '--:-- - --/--/----'}`;
-  }
-}
-document.addEventListener('DOMContentLoaded', function() {
-  const searchContainer = document.getElementById('search-container');
-  if (searchContainer && !document.getElementById('search-clear')) {
-    const clearBtn = document.createElement('button');
-    clearBtn.id = 'search-clear';
-    clearBtn.innerHTML = '✕';
-    clearBtn.onclick = clearSearch;
-    clearBtn.style.cssText = 'position: absolute; right: 65px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; color: #999; font-size: 20px; display: none; padding: 5px 8px;';
-    searchContainer.insertBefore(clearBtn, document.getElementById('search-button'));
-  }
-}, { once: true });
 
-  document.addEventListener('DOMContentLoaded', function() {
-    // Check if user is logged in
-    if (typeof SLApi !== 'undefined' && SLApi.getAuthToken) {
-      const token = SLApi.getAuthToken();
-      
-      if (!token) {
-        // Not logged in, redirect to login page
-        console.warn('User not logged in. Redirecting to Page.html');
-        window.location.href = './Page.html';
-        return;
-      }
-      
-      // User is logged in, display user info
-      const user = SLApi.getAuthUser ? SLApi.getAuthUser() : null;
-      if (user) {
-        const userName = user.userCode || user.username || user.name || 'User';
-        const loginTime = user.loginTime || new Date().toLocaleString('vi-VN');
-        
-        const userNameElement = document.getElementById('userNameText');
-        const loginTimeElement = document.getElementById('loginTimeText');
-        
-        if (userNameElement) {
-          userNameElement.textContent = userName;
-        }
-        if (loginTimeElement) {
-          loginTimeElement.textContent = `Đăng nhập: ${loginTime}`;
-        }
-      }
+  showMenu() {
+    this.currentView = 'menu';
+    if (typeof setViewType === 'function') {
+      setViewType('menu');
     }
-  });
+    this.render('control-panel');
+  }
 
+  // Trả về role hiện tại: 'admin' hoặc 'user'
+  getCurrentUserRole() {
+    try {
+      const user = (window.SLApi && SLApi.getAuthUser) ? SLApi.getAuthUser() : null;
+      if (!user) return 'admin'; // mặc định hiển thị đủ nút nếu không có thông tin
+      const role =
+        user.role ||
+        user.userRole ||
+        (Array.isArray(user.roles) ? user.roles[0] : null);
+      if (role) return String(role).toLowerCase();
+      if (user.isAdmin === true) return 'admin';
+      return 'admin'; // mặc định admin để không ẩn nhầm
+    } catch {
+      return 'admin';
+    }
+  }
+
+  // Lấy mã người dùng hiện tại
+  getCurrentUserCode() {
+    try {
+      const user = (window.SLApi && SLApi.getAuthUser) ? SLApi.getAuthUser() : null;
+      return user && (user.userCode || user.username || user.name) || null;
+    } catch {
+      return null;
+    }
+  }
+
+  // Kiểm tra quyền admin/manager
+  isAdminOrManager() {
+    const role = this.getCurrentUserRole();
+    return role === 'admin' || role === 'manager';
+  }
+
+  // Set filter mặc định khi mở báo cáo
+  setDefaultHistoryFilters() {
+    const now = new Date();
+    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
+    this.filterOptions = {
+      userCode: this.getCurrentUserCode(),
+      from: startOfDay.toISOString().slice(0,16), // yyyy-MM-ddTHH:mm
+      to: now.toISOString().slice(0,16),
+      limit: 20,
+    };
+  }
+
+  // Cập nhật filter theo trường
+  updateHistoryFilter(field, value) {
+    if (!this.filterOptions) this.filterOptions = { userCode: null, from: null, to: null, limit: 20 };
+    // Chuẩn hoá limit
+    if (field === 'limit') {
+      const n = parseInt(value, 10);
+      this.filterOptions.limit = Number.isFinite(n) && n > 0 ? n : 20;
+    } else {
+      this.filterOptions[field] = value || null;
+    }
+  }
+
+  // Áp dụng filter và nạp lịch sử
+  async applyHistoryFilters() {
+    await this.loadHistory();
+    if (this.historyModalOpen) {
+      this.renderHistoryModalContent();
+    } else {
+      this.render('control-panel');
+    }
+  }
+
+  // Nạp lịch sử từ backend theo filterOptions
+  async loadHistory() {
+    this.historyLoading = true;
+    this.historyError = null;
+    try {
+      const params = {
+        userCode: this.filterOptions.userCode || undefined,
+        from: this.filterOptions.from ? new Date(this.filterOptions.from).toISOString() : undefined,
+        to: this.filterOptions.to ? new Date(this.filterOptions.to).toISOString() : undefined,
+        limit: this.filterOptions.limit || 20,
+      };
+      let data = [];
+      if (window.SLApi && SLApi.fetchHistoryApi) {
+        data = await SLApi.fetchHistoryApi(params);
+      } else if (window.SLApi && SLApi.getHistoryApi) {
+        // Fallback nếu API tên khác
+        data = await SLApi.getHistoryApi(params);
+      } else {
+        throw new Error('API lịch sử chưa sẵn sàng');
+      }
+      // Sort desc theo createdAt và cắt theo limit
+      const parsed = (data || []).slice().sort((a,b) => {
+        const ta = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const tb = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return tb - ta;
+      });
+      const limited = parsed.slice(0, params.limit || 20);
+      this.historyData = limited.map(it => ({
+        productCode: it.productCode || it.code || '',
+        productName: it.productName || it.name || '',
+        location: it.location || it.viTri || '',
+        quantity: typeof it.quantity === 'number' ? it.quantity : parseInt(it.quantity || 0, 10),
+        createdAt: it.createdAt || it.time || null,
+        userCode: it.userCode || it.user || '',
+      }));
+    } catch (e) {
+      console.error('Load history failed:', e);
+      this.historyError = e.message || 'Lỗi tải lịch sử';
+    } finally {
+      this.historyLoading = false;
+    }
+  }
+
+  // Render history into modal content
+  renderHistoryModalContent() {
+    const content = document.getElementById('history-modal-content');
+    if (content) {
+      content.innerHTML = this.generateHistoryTable();
+    }
+  }
+
+  // Show fullscreen history modal
+  showHistoryModal() {
+    const backdrop = document.getElementById('history-modal-backdrop');
+    const overlay = document.getElementById('history-modal-overlay');
+    const content = document.getElementById('history-modal-content');
+    if (backdrop) backdrop.classList.remove('hidden');
+    if (overlay) overlay.classList.remove('hidden');
+    if (content) content.innerHTML = this.generateHistoryTable();
+    this.historyModalOpen = true;
+  }
+
+  // Close fullscreen history modal
+  closeHistoryModal() {
+    const backdrop = document.getElementById('history-modal-backdrop');
+    const overlay = document.getElementById('history-modal-overlay');
+    if (backdrop) backdrop.classList.add('hidden');
+    if (overlay) overlay.classList.add('hidden');
+    this.historyModalOpen = false;
   }
 
   getLabelPosition() {
@@ -429,7 +523,7 @@ document.addEventListener('DOMContentLoaded', function() {
       const file = evt.target && evt.target.files && evt.target.files[0];
       if (!file) return;
       if (!window.SLApi || !SLApi.uploadImageApi) {
-        alert('API tải ảnh chưa sẵn sàng');
+        showModal('API tải ảnh chưa sẵn sàng');
         return;
       }
       const uploaded = await SLApi.uploadImageApi(file, this.currentProduct.id);
@@ -441,7 +535,7 @@ document.addEventListener('DOMContentLoaded', function() {
         imageName = uploaded.fileName || uploaded.imageName || uploaded.url;
       }
       if (!imageName) {
-        alert('Tải ảnh thành công nhưng không nhận được tên file');
+        showModal('Tải ảnh thành công nhưng không nhận được tên file');
         return;
       }
       const url = SLApi.buildImageUrl ? SLApi.buildImageUrl(imageName) : imageName;
@@ -451,7 +545,7 @@ document.addEventListener('DOMContentLoaded', function() {
       if (modalContent) modalContent.innerHTML = this.generateProductDetail();
     } catch (err) {
       console.error(err);
-      alert('Tải ảnh thất bại');
+      showModal('Tải ảnh thất bại');
     } finally {
       const input = document.getElementById('productImageInput');
       if (input) input.value = '';
@@ -473,10 +567,10 @@ document.addEventListener('DOMContentLoaded', function() {
       // Update local state
       this.currentProduct.name = payload.productName;
       this.currentProduct.description = payload.description;
-      alert('Đã lưu thông tin sản phẩm');
+      showModal('Đã lưu thông tin sản phẩm');
     } catch (err) {
       console.error(err);
-      alert('Lưu thông tin thất bại');
+      showModal('Lưu thông tin thất bại');
     }
   }
 
@@ -484,7 +578,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (!this.currentProduct || !this.currentCase) return;
     
     if (!this.tempQuantity || this.tempQuantity <= 0) {
-      alert('Vui lòng nhập số lượng lớn hơn 0!');
+      showModal('Vui lòng nhập số lượng lớn hơn 0!');
       return;
     }
     
@@ -529,7 +623,7 @@ document.addEventListener('DOMContentLoaded', function() {
     } catch (err) {
       console.error('Import API failed:', err);
       const errorMsg = err.message || err.toString();
-      alert(`Lỗi nhập vật tư:\n${errorMsg}\n\nVui lòng kiểm tra kết nối với server.`);
+      showModal(`Lỗi nhập vật tư:\n${errorMsg}\n\nVui lòng kiểm tra kết nối với server.`);
       return;
     }
 
@@ -578,10 +672,13 @@ document.addEventListener('DOMContentLoaded', function() {
     this.render('control-panel');
     
     console.log('✓ Nhập vật tư thành công:', window.importList);
-    alert(`✓ Nhập thành công: ${this.currentProduct?.name || 'Sản phẩm'} x${quantityToAdd}`);
+    showModal(`✓ Nhập thành công: ${this.currentProduct?.name || 'Sản phẩm'} x${quantityToAdd}`);
   }
 
   generateActionButtons() {
+    const role = this.getCurrentUserRole();
+    const isUser = role === 'user';
+
     const buttons = [
       { text: 'Xuất Vật Tư', action: 'xuatVatTu' },
       { text: 'Báo Cáo', action: 'baoCao1' },
@@ -589,7 +686,12 @@ document.addEventListener('DOMContentLoaded', function() {
       { text: 'Cài Đặt', action: 'caiDat' }
     ];
 
-    const buttonHTML = buttons.map(btn => `
+    // Ẩn "Nhập Vật Tư" và "Cài Đặt" nếu role là user
+    const visibleButtons = buttons.filter(
+      btn => !(isUser && (btn.action === 'nhapVatTu' || btn.action === 'caiDat'))
+    );
+
+    const buttonHTML = visibleButtons.map(btn => `
       <button class="action-btn" onclick="${btn.action}()">
         ${btn.text}
       </button>
@@ -668,30 +770,114 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   generateHistoryTable() {
+    const isPrivileged = this.isAdminOrManager();
+    const headerBar = `
+      <div class="history-header">
+        <div class="history-header-text">
+          <p class="history-chip">Báo Cáo</p>
+          <h2>Hoạt động nhập xuất</h2>
+          <p class="history-subtitle">Theo dõi 20 bản ghi gần nhất và tùy chỉnh bộ lọc.</p>
+        </div>
+        <button class="history-close" onclick="controlPanel.closeHistoryModal()">
+          <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" width="20" height="20">
+            <path d="M15 18L9 12L15 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+          </svg>
+          <span>Đóng</span>
+        </button>
+      </div>`;
+
+    const userFilter = isPrivileged ? `
+      <div class="history-filter-item">
+        <label>Người dùng</label>
+        <input type="text" id="historyUser" placeholder="userCode" value="${this.filterOptions.userCode || ''}" onchange="updateHistoryFilter('userCode', this.value)" />
+      </div>` : '';
+
+    const filtersBar = `
+      <div class="history-filter-grid">
+        <div class="history-filter-item">
+          <label>Từ</label>
+          <input type="datetime-local" id="historyFrom" value="${this.filterOptions.from || ''}" onchange="updateHistoryFilter('from', this.value)" />
+        </div>
+        <div class="history-filter-item">
+          <label>Đến</label>
+          <input type="datetime-local" id="historyTo" value="${this.filterOptions.to || ''}" onchange="updateHistoryFilter('to', this.value)" />
+        </div>
+        <div class="history-filter-item">
+          <label>Giới hạn</label>
+          <select id="historyLimit" onchange="updateHistoryFilter('limit', this.value)">
+            <option value="20" ${this.filterOptions.limit===20?'selected':''}>20</option>
+            <option value="50" ${this.filterOptions.limit===50?'selected':''}>50</option>
+            <option value="100" ${this.filterOptions.limit===100?'selected':''}>100</option>
+          </select>
+        </div>
+        ${userFilter}
+        <div class="history-filter-actions">
+          <button class="history-filter-btn" onclick="applyHistoryFilters()">Cập Nhật</button>
+        </div>
+      </div>`;
+
+    const buildTableSection = tableRows => `
+      <div class="history-table-scroll">
+        <div class="table-wrapper history-table-wrapper">
+          <table class="history-table">
+            <thead>
+              <tr>
+                <th>Mã Vật Tư</th>
+                <th>Tên Vật Tư</th>
+                <th>Vị Trí</th>
+                <th>Số Lượng</th>
+                <th>Thời Gian</th>
+                <th>Người Dùng</th>
+                <th>Trạng Thái</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${tableRows}
+            </tbody>
+          </table>
+        </div>
+      </div>`;
+
+    const footer = `
+      <div class="history-modal-footer">
+        
+        <button class="history-export-btn" onclick="exportReport()">
+          <div class="text">
+            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="7 10 12 15 17 10"></polyline>
+              <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
+            <span>Xuất Báo Cáo</span>
+          </div>
+          <div class="icon">
+            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="7 10 12 15 17 10"></polyline>
+              <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
+          </div>
+        </button>
+      </div>`;
+
     if (this.historyLoading) {
       return `
-        <div class="history-container">
-          <div class="table-wrapper">
-            <table class="history-table">
-              <tbody>
-                <tr><td style="padding: 18px; color: rgba(255,255,255,0.7); text-align:center;">Đang tải lịch sử...</td></tr>
-              </tbody>
-            </table>
-          </div>
+        <div class="history-modal-shell">
+          ${headerBar}
+          ${filtersBar}
+          ${buildTableSection('<tr><td colspan="7" class="history-empty">Đang tải lịch sử...</td></tr>')}
+          ${footer}
         </div>
       `;
     }
 
     if (this.historyError) {
       return `
-        <div class="history-container">
-          <div class="table-wrapper">
-            <table class="history-table">
-              <tbody>
-                <tr><td style="padding: 18px; color: #ff9e9e; text-align:center;">${this.historyError}</td></tr>
-              </tbody>
-            </table>
-          </div>
+        <div class="history-modal-shell">
+          ${headerBar}
+          ${filtersBar}
+          ${buildTableSection(`<tr><td colspan="7" class="history-empty">${this.historyError}</td></tr>`)}
+          ${footer}
         </div>
       `;
     }
@@ -713,59 +899,16 @@ document.addEventListener('DOMContentLoaded', function() {
       `;
     }).join('') : `
       <tr>
-        <td colspan="7" style="text-align: center; padding: 20px; color: rgba(255,255,255,0.5);">
-          Chưa có dữ liệu lịch sử.
-        </td>
+        <td colspan="7" class="history-empty">Chưa có dữ liệu lịch sử.</td>
       </tr>
     `;
 
     return `
-      <div class="history-container">
-        <div class="table-wrapper">
-          <table class="history-table">
-            <thead>
-              <tr>
-                <th>Mã Vật Tư</th>
-                <th>Tên Vật Tư</th>
-                <th>Vị Trí</th>
-                <th>Số Lượng</th>
-                  <th>Thời Gian</th>
-                  <th>Người Dùng</th>
-                  <th>Trạng Thái</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${rows}
-            </tbody>
-          </table>
-        </div>
-        
-        <div class="button-row">
-          <button class="back-btn" onclick="controlPanel.showMenu()">
-            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-              <path d="M15 18L9 12L15 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-            </svg>
-            <span>Trở Lại</span>
-          </button>
-          
-          <button class="export-btn" onclick="exportReport()">
-            <div class="text">
-              <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                <polyline points="7 10 12 15 17 10"></polyline>
-                <line x1="12" y1="15" x2="12" y2="3"></line>
-              </svg>
-              <span>Xuất Báo Cáo</span>
-            </div>
-            <div class="icon">
-              <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                <polyline points="7 10 12 15 17 10"></polyline>
-                <line x1="12" y1="15" x2="12" y2="3"></line>
-              </svg>
-            </div>
-          </button>
-        </div>
+      <div class="history-modal-shell">
+        ${headerBar}
+        ${filtersBar}
+        ${buildTableSection(rows)}
+        ${footer}
       </div>
     `;
   }
@@ -855,54 +998,197 @@ document.addEventListener('DOMContentLoaded', function() {
     this.render('control-panel');
   }
 
-  showMenu() {
-      this.currentView = 'menu';
-      
-      // Ẩn product list nếu đang hiển thị
-      const productListSection = document.getElementById('product-list-section');
-      if (productListSection) {
-          productListSection.classList.add('hidden');
-      }
-      
-      // Hiện locker grid
-      const lockerGrid = document.getElementById('locker-grid');
-      if (lockerGrid) {
-          lockerGrid.classList.remove('hidden');
-      }
-      
-      // Reset current case
-      currentCase = null;
-      
-      this.render('control-panel');
-  }
+  // ...existing code...
+  // (Remove misplaced template literal and code block)
 
   render(containerId) {
     const container = document.getElementById(containerId);
-    if (container) {
-      let content;
-      
-      if (this.currentView === 'menu') {
-        content = this.generateActionButtons();
-      } else if (this.currentView === 'history') {
-        content = this.generateHistoryTable();
-      } else if (this.currentView === 'export') {  
-        content = this.generateExportTable();
-      } else if (this.currentView === 'import') {  
-        content = this.generateImportTable();
-      } else if (this.currentView === 'productDetail') {
-        content = this.generateProductDetail();
-      }
-
-      container.innerHTML = `
-        ${this.generateUserLabel()}
-        ${content}
-      `;
+    let content;
+    if (this.currentView === 'menu') {
+      content = this.generateActionButtons();
+    } else if (this.currentView === 'history') {
+      content = this.generateHistoryTable();
+    } else if (this.currentView === 'export') {
+      content = this.generateExportTable();
+    } else if (this.currentView === 'import') {
+      content = this.generateImportTable();
+    } else if (this.currentView === 'productDetail') {
+      content = this.generateProductDetail();
     }
+    container.innerHTML = `
+      ${this.generateUserLabel()}
+      ${content}
+    `;
   }
 }
 
 // Global instance
 let controlPanel;
+
+// ============ MODAL UTILITY ============
+function showModal(message, callback) {
+  // Create modal backdrop
+  const backdrop = document.createElement('div');
+  backdrop.className = 'alert-modal-backdrop';
+  backdrop.style.cssText = `
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+  `;
+
+  // Create modal content
+  const modal = document.createElement('div');
+  modal.className = 'alert-modal-content';
+  modal.style.cssText = `
+    background: linear-gradient(135deg, #0C2A62 0%, #1a4080 100%);
+    border: 2px solid #009EDB;
+    border-radius: 12px;
+    padding: 30px;
+    min-width: 320px;
+    max-width: 500px;
+    box-shadow: 0 8px 32px rgba(0, 158, 219, 0.3);
+  `;
+
+  // Message text
+  const messageEl = document.createElement('p');
+  messageEl.textContent = message;
+  messageEl.style.cssText = `
+    color: #fff;
+    font-size: 16px;
+    line-height: 1.6;
+    margin-bottom: 25px;
+    text-align: center;
+    font-family: 'Poppins', sans-serif;
+  `;
+
+  // OK button
+  const okButton = document.createElement('button');
+  okButton.textContent = 'OK';
+  okButton.style.cssText = `
+    background: linear-gradient(135deg, #009EDB 0%, #00D1FF 100%);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 12px 40px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    width: 100%;
+    font-family: 'Poppins', sans-serif;
+    transition: all 0.3s ease;
+  `;
+
+  okButton.onmouseover = () => {
+    okButton.style.transform = 'translateY(-2px)';
+    okButton.style.boxShadow = '0 4px 12px rgba(0, 158, 219, 0.4)';
+  };
+  okButton.onmouseout = () => {
+    okButton.style.transform = 'translateY(0)';
+    okButton.style.boxShadow = 'none';
+  };
+
+  okButton.onclick = () => {
+    document.body.removeChild(backdrop);
+    if (callback) callback();
+  };
+
+  modal.appendChild(messageEl);
+  modal.appendChild(okButton);
+  backdrop.appendChild(modal);
+  document.body.appendChild(backdrop);
+
+  // Auto focus OK button
+  setTimeout(() => okButton.focus(), 100);
+}
+
+function showErrorAndLogout(message, onClose) {
+  showModal(message, () => {
+    if (typeof onClose === 'function') {
+      onClose();
+    }
+    setTimeout(() => logout(), 500);
+  });
+}
+
+function logout() {
+  try {
+    localStorage.removeItem('smartlocker_user');
+    localStorage.removeItem('smartlocker_login_time');
+
+    if (window.SLApi) {
+      if (typeof SLApi.logout === 'function') {
+        SLApi.logout();
+      }
+      if (typeof SLApi.setAuthToken === 'function') {
+        SLApi.setAuthToken(null);
+      }
+      if (typeof SLApi.setAuthUser === 'function') {
+        SLApi.setAuthUser(null);
+      }
+    }
+
+    refreshUserInfoDisplay(null);
+    showLoginOverlay();
+    if (typeof initLoginForm === 'function') {
+      initLoginForm();
+    }
+
+    if (controlPanel) {
+      controlPanel.currentView = 'menu';
+      controlPanel.currentProduct = null;
+      controlPanel.currentCase = null;
+      controlPanel.tempQuantity = 0;
+      controlPanel.render('control-panel');
+    }
+  } catch (err) {
+    console.error('Logout failed:', err);
+    window.location.reload();
+  }
+}
+
+function showLoginOverlay() {
+  const overlay = document.getElementById('login-overlay');
+  if (!overlay) return;
+  overlay.classList.remove('hidden');
+}
+
+function hideLoginOverlay() {
+  const overlay = document.getElementById('login-overlay');
+  if (!overlay) return;
+  overlay.classList.add('hidden');
+}
+
+function refreshUserInfoDisplay(userOverride) {
+  const user = userOverride || ((window.SLApi && SLApi.getAuthUser) ? SLApi.getAuthUser() : null);
+  const name = user && (user.userCode || user.username || user.name) || 'Người dùng';
+  const iso = localStorage.getItem('smartlocker_login_time');
+  const timeSource = iso ? new Date(iso) : new Date();
+  const timeStr = timeSource
+    .toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' })
+    .replace(',', ' -');
+
+  const userNameElement = document.getElementById('userNameText');
+  if (userNameElement) {
+    userNameElement.textContent = name;
+    userNameElement.style.cursor = 'pointer';
+    userNameElement.setAttribute('title', 'Đăng xuất');
+    userNameElement.onclick = () => {
+      logout();
+    };
+  }
+
+  const timeNode = document.getElementById('loginTimeText');
+  if (timeNode) {
+    timeNode.textContent = timeStr;
+  }
+}
 
 // Event Handlers
 function xuatVatTu() {
@@ -912,16 +1198,33 @@ function xuatVatTu() {
 
 function baoCao1() {
   console.log('Báo cáo - Hiển thị lịch sử');
-  controlPanel.showHistory();
+  // Set default filters to current user and today
+  controlPanel.setDefaultHistoryFilters();
+  // Load history with filters then show view
+  (async function(){
+    await controlPanel.loadHistory();
+    controlPanel.showHistoryModal();
+  })();
 }
 
 function nhapVatTu() {
   console.log('Nhập vật tư');
   controlPanel.showImport();
 }
+// Global filter handlers for history table
+function updateHistoryFilter(field, value) {
+  if (controlPanel && typeof controlPanel.updateHistoryFilter === 'function') {
+    controlPanel.updateHistoryFilter(field, value);
+  }
+}
+function applyHistoryFilters() {
+  if (controlPanel && typeof controlPanel.applyHistoryFilters === 'function') {
+    controlPanel.applyHistoryFilters();
+  }
+}
 function confirmImport() {
   if (!window.importList || window.importList.length === 0) {
-    alert('Danh sách nhập trống!');
+    showModal('Danh sách nhập trống!');
     return;
   }
   
@@ -957,26 +1260,33 @@ function confirmImport() {
       
       // Show result
       if (errorCount === 0) {
-        alert(`✓ Đã lưu thành công ${savedCount} vật tư vào lịch sử!`);
-        window.importList = [];
-        controlPanel.showImport(); // Refresh to show empty list
+        showModal(`✓ Đã lưu thành công ${savedCount} vật tư vào lịch sử!`, () => {
+          window.importList = [];
+          controlPanel.showImport();
+          // Logout after successful import
+          setTimeout(() => logout(), 500);
+        });
       } else {
-        alert(`⚠ Lưu ${savedCount}/${window.importList.length} vật tư.\n${errorCount} vật tư lỗi. Vui lòng thử lại.`);
+        const failedItems = window.importList.slice(0, errorCount).map(item => item.tenVatTu || item.maVatTu || 'vật tư').join(', ');
+        const message = `⚠ Lưu ${savedCount}/${window.importList.length} vật tư. ${errorCount} vật tư lỗi (${failedItems || 'xem console'}). Đăng xuất để kết thúc.`;
+        showErrorAndLogout(message, () => {
+          window.importList = [];
+        });
       }
     } catch (err) {
       console.error('Confirm import error:', err);
-      alert('Lỗi khi lưu lịch sử. Vui lòng thử lại.');
+      showErrorAndLogout('Lỗi khi lưu lịch sử. Đăng xuất và vào lại để thử lại.');
     }
   })();
 }
 function caiDat() {
   console.log('Cài đặt');
-  alert('Cài đặt');
+  showModal('Cài đặt');
 }
 
 function exportReport() {
   console.log('Xuất báo cáo');
-  alert('Đang xuất báo cáo...');
+  showModal('Đang xuất báo cáo...');
 }
 
 function removeProductFromInventory(caseNumber, productId, quantityToRemove) {
@@ -995,54 +1305,154 @@ function removeProductFromInventory(caseNumber, productId, quantityToRemove) {
 
 function confirmExport() { 
     if (!window.exportList || window.exportList.length === 0) {
-        alert('Danh sách xuất trống!');
+        showModal('Danh sách xuất trống!');
         return;
     }
     
-    // Loop qua exportList và trừ số lượng từ inventory
-    let success = true;
-    let failedItems = [];
-    const affectedCases = new Set(); // Track các case đã thay đổi
+    console.log('Xác nhận xuất vật tư:', window.exportList);
     
-    for (const item of window.exportList) {
-        if (!removeProductFromInventory(item.viTri, item.productId, item.soLuong)) {
-            success = false;
-            failedItems.push(item.tenVatTu);
-        } else {
-            affectedCases.add(item.viTri); // Lưu case đã thay đổi
-        }
-    }
-    
-    if (success) {
-        console.log('Xác nhận xuất vật tư:', window.exportList);
-        alert('Đã xuất ' + window.exportList.length + ' loại vật tư!');
-        affectedCases.forEach(caseNum => {
-            const tempCurrentCase = currentCase; // Backup currentCase
-            currentCase = caseNum; // Set tạm để updateTotalQuantity() work
-            if (typeof updateTotalQuantity === 'function') {
-                updateTotalQuantity();
+    // Process export asynchronously
+    (async function() {
+        try {
+            const user = window.SLApi && SLApi.getAuthUser ? SLApi.getAuthUser() : null;
+            const userCode = user && (user.userCode || user.username || user.name) || 'unknown';
+            
+            let successCount = 0;
+            let errorCount = 0;
+            const affectedCases = new Set();
+            const failedItems = [];
+            
+            // Process each export item
+            for (const item of window.exportList) {
+                try {
+                    // Check if enough quantity in local inventory
+                    const caseProducts = productsByCase[item.viTri];
+                    const product = caseProducts ? caseProducts.find(p => p.id === item.productId) : null;
+                    
+                    if (!product || product.quantity < item.soLuong) {
+                        failedItems.push(item.tenVatTu);
+                        errorCount++;
+                        continue;
+                    }
+                    
+                    // Calculate new quantity after export
+                    const newQuantity = product.quantity - item.soLuong;
+                    
+                    // Update product quantity on server
+                    if (window.SLApi && SLApi.updateProductApi) {
+                        await SLApi.updateProductApi(item.productId, {
+                            quantity: newQuantity,
+                            location: String(item.viTri)
+                        });
+                        console.log(`✓ Updated product ${item.maVatTu}: ${product.quantity} -> ${newQuantity}`);
+                    }
+                    
+                    // Record export history (negative quantity)
+                    if (window.SLApi && SLApi.recordHistoryApi) {
+                        await SLApi.recordHistoryApi({
+                            userCode: userCode,
+                            productName: item.tenVatTu,
+                            productCode: item.maVatTu,
+                            location: String(item.viTri),
+                            quantity: -item.soLuong, // Negative for export
+                        });
+                        console.log(`✓ Saved export history for ${item.maVatTu}`);
+                    }
+                    
+                    // Update local inventory
+                    product.quantity = newQuantity;
+                    affectedCases.add(item.viTri);
+                    successCount++;
+                    
+                } catch (err) {
+                    console.error(`✗ Failed to export ${item.maVatTu}:`, err);
+                    errorCount++;
+                    failedItems.push(item.tenVatTu);
+                }
             }
-            currentCase = tempCurrentCase; // Restore currentCase
-        });
-        
-        // Clear export list và reset exportedQuantities
-        window.exportList = [];
-        
-        // Reset tất cả exportedQuantities
-        for (let caseNum in exportedQuantities) {
-            exportedQuantities[caseNum] = {};
+            
+            // Update UI for affected cases
+            affectedCases.forEach(caseNum => {
+                const tempCurrentCase = currentCase;
+                currentCase = caseNum;
+                if (typeof updateTotalQuantity === 'function') {
+                    updateTotalQuantity();
+                }
+                currentCase = tempCurrentCase;
+            });
+            
+            // Show results
+            if (errorCount === 0) {
+                // Clear export list and reset quantities
+                window.exportList = [];
+                
+                // Reset exportedQuantities
+                for (let caseNum in exportedQuantities) {
+                    exportedQuantities[caseNum] = {};
+                }
+                
+                // Refresh product list
+                if (typeof renderProductList === 'function' && currentCase) {
+                    renderProductList();
+                }
+                
+                controlPanel.showExport(); // Refresh table
+                
+                // Show success and logout
+                showModal(`✓ Đã xuất thành công ${successCount} vật tư!`, () => {
+                    setTimeout(() => logout(), 500);
+                });
+            } else {
+              const failureContext = failedItems.length > 0 ? failedItems.join(', ') : 'xem console';
+              const message = `⚠ Xuất ${successCount}/${window.exportList.length} vật tư. ${errorCount} vật tư lỗi: ${failureContext}. Đăng xuất để kết thúc.`;
+              showErrorAndLogout(message, () => {
+                window.exportList = [];
+              });
+            }
+            
+        } catch (err) {
+            console.error('Confirm export error:', err);
+            showErrorAndLogout('Lỗi khi xuất vật tư. Đăng xuất và vào lại để thử lại.');
         }
-        
-        // Refresh product list nếu đang hiển thị
-        if (typeof renderProductList === 'function' && currentCase) {
-            renderProductList();
-        }
-        
-        controlPanel.showExport(); // Refresh table
-    } else {
-        alert('Không đủ số lượng để xuất: ' + failedItems.join(', '));
-    }
+    })();
 }
+document.addEventListener('DOMContentLoaded', function() {
+  const searchContainer = document.getElementById('search-container');
+  if (searchContainer && !document.getElementById('search-clear')) {
+    const clearBtn = document.createElement('button');
+    clearBtn.id = 'search-clear';
+    clearBtn.innerHTML = '✕';
+    clearBtn.onclick = clearSearch;
+    clearBtn.style.cssText = 'position: absolute; right: 65px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; color: #999; font-size: 20px; display: none; padding: 5px 8px;';
+    searchContainer.insertBefore(clearBtn, document.getElementById('search-button'));
+  }
+}, { once: true });
+
+document.addEventListener('DOMContentLoaded', function() {
+  const token = typeof SLApi !== 'undefined' && typeof SLApi.getAuthToken === 'function'
+    ? SLApi.getAuthToken()
+    : null;
+  if (!token) {
+    console.warn('User not logged in. Showing login overlay.');
+    showLoginOverlay();
+  } else {
+    hideLoginOverlay();
+  }
+  refreshUserInfoDisplay();
+  if (typeof initLoginForm === 'function') {
+    initLoginForm();
+  }
+});
+
+window.addEventListener('smartlocker-login-success', event => {
+  hideLoginOverlay();
+  const user = event && event.detail ? event.detail.user : null;
+  refreshUserInfoDisplay(user);
+  if (controlPanel) {
+    controlPanel.render('control-panel');
+  }
+});
+
 // Initialize Page
 document.addEventListener('DOMContentLoaded', () => {
   const lockerGrid = new LockerGrid();
@@ -1051,22 +1461,16 @@ document.addEventListener('DOMContentLoaded', () => {
   controlPanel = new ControlPanel();
   controlPanel.render('control-panel');
 
-  try {
-    const raw = localStorage.getItem('smartlocker_user');
-    const user = raw ? JSON.parse(raw) : null;
-    const name = user && (user.userCode || user.username || user.name) || 'Người dùng';
-    const iso = localStorage.getItem('smartlocker_login_time');
-    const d = iso ? new Date(iso) : new Date();
-    const timeStr = d.toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' }).replace(',', ' -');
-    const nameNode = document.getElementById('userNameText');
-    const timeNode = document.getElementById('loginTimeText');
-    if (nameNode) nameNode.textContent = name;
-    if (timeNode) timeNode.textContent = 'Đăng nhập: ' + timeStr;
-  } catch (e) { console.warn('Set user info failed', e); }
+  refreshUserInfoDisplay();
 
   console.log('Page1 initialized');
   // Setup search interactions
   setupSearchFiltering();
+
+  // tắt modal login tắt 2 hàm này
+  initLoginForm();
+  showLoginOverlay();
+
 });
 
 // Global search/filter by keyword to show only matching cases
@@ -1145,6 +1549,7 @@ function setupSearchFiltering() {
     typingTimer = setTimeout(runSearch, 250);
   });
   button.addEventListener('click', runSearch);
+}
 
 // Clear search input and show all products
 function clearSearch() {
@@ -1178,4 +1583,3 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
 });
-}
